@@ -57,7 +57,15 @@ function AppLayout() {
         </Routes>
       </main>
 
-      <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} />
+      <CommandPalette 
+        isOpen={cmdOpen} 
+        onClose={() => setCmdOpen(false)}
+        onGenerateRandom={handleGenerateRandom}
+        onPasteCustom={() => {
+          setCmdOpen(false);
+          navigate('/', { state: { openModal: 'text' } });
+        }}
+      />
     </div>
   );
 }

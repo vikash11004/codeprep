@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../utils/api';
 import { ArrowRight, ClipboardPaste, Globe2, Grid3x3, ArrowLeftRight, PanelLeft, Layers, SearchCode, Link2, GitFork, Network, Triangle, Undo2, Share2, SquareStack, Flag, GanttChart, Shapes, ToggleLeft } from 'lucide-react';
 import InputModal from '../components/InputModal';
@@ -14,6 +14,7 @@ const CATEGORY_ICONS = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ solved: 0, passRate: 0, weekly: 0, streak: 0 });
@@ -27,6 +28,15 @@ export default function Dashboard() {
       .catch((error) => console.error('Failed to load dashboard:', error))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (location.state?.openModal) {
+      setModalMode(location.state.openModal);
+      setModalOpen(true);
+      // Clean up the state so it doesn't re-open on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const categories = useMemo(() => {
     const grouped = problems.reduce((all, problem) => {

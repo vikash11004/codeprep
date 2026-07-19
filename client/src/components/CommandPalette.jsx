@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, LayoutGrid, BarChart2, Shuffle, FileText } from 'lucide-react';
 
-export default function CommandPalette({ isOpen, onClose }) {
+export default function CommandPalette({ isOpen, onClose, onGenerateRandom, onPasteCustom }) {
   const navigate = useNavigate();
   const inputRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -20,8 +20,8 @@ export default function CommandPalette({ isOpen, onClose }) {
     { id: 'lib', label: 'Go to Library', icon: <LayoutGrid size={16} />, onClick: () => { navigate('/'); onClose(); } },
 
     { id: 'all', label: 'View All Problems', icon: <Search size={16} />, onClick: () => { navigate('/library'); onClose(); } },
-    { id: 'rand', label: 'Generate Random Problem', icon: <Shuffle size={16} />, onClick: () => { onClose(); } },
-    { id: 'paste', label: 'Paste Custom Problem', icon: <FileText size={16} />, onClick: () => { onClose(); } },
+    { id: 'rand', label: 'Generate Random Problem', icon: <Shuffle size={16} />, onClick: () => { onGenerateRandom(); onClose(); } },
+    { id: 'paste', label: 'Paste Custom Problem', icon: <FileText size={16} />, onClick: () => { onPasteCustom(); onClose(); } },
   ];
 
   const filtered = query
