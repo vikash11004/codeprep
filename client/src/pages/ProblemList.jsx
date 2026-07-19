@@ -74,54 +74,52 @@ export default function ProblemList() {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-white">
-      <div className="max-w-[1200px] mx-auto px-8 py-8">
-
+    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg-secondary)', width: '100%' }}>
+      <div className="pl-container">
+        
         {/* Back link */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-1.5 text-[13px] font-medium text-[#2EAADC] hover:underline mb-6 transition-colors"
-        >
-          <ArrowLeft size={14} />
+        <button onClick={() => navigate('/')} className="pl-back-link">
+          <ArrowLeft size={16} />
           Back to all topics
         </button>
 
         {/* Title */}
-        <h1 className="text-[24px] font-bold text-[#111111] mb-1">
-          {categoryFilter || 'All Problems'}
-        </h1>
-        <p className="text-[14px] text-[#9CA3AF] mb-6">
-          {totalCount} problems · {solvedCount} solved
-        </p>
+        <div className="pl-header-top">
+          <h1 className="pl-main-title">
+            {categoryFilter || 'Problem Library'}
+          </h1>
+          <p className="pl-subtitle">
+            <strong>{solvedCount}</strong> solved out of {totalCount} total problems
+          </p>
+        </div>
 
-        {/* Filter Bar */}
-        <div className="flex items-center gap-3 mb-8 flex-wrap">
+        {/* Premium Filter Bar (Centered) */}
+        <div className="pl-filter-bar">
           {/* Search */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+          <div className="pl-search">
+            <Search className="pl-search-icon" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter problems..."
-              className="pl-8 pr-3 py-1.5 text-[13px] border border-[#E3E2E0] rounded-[4px] bg-white
-                focus:outline-none focus:border-[#2EAADC] transition-colors w-[200px]"
+              placeholder="Search problems..."
+              className="pl-search-input"
             />
           </div>
 
-          <div className="h-4 w-px bg-[#E3E2E0]" />
+          <div className="pl-divider sm-show" />
 
           {/* Difficulty Pills */}
-          <div className="flex items-center gap-1">
+          <div className="pl-pill-group">
             {DIFFICULTIES.map(d => (
               <TogglePill key={d} label={d} active={difficulty === d} onClick={() => setDifficulty(d)} />
             ))}
           </div>
 
-          <div className="h-4 w-px bg-[#E3E2E0]" />
+          <div className="pl-divider md-show" />
 
           {/* Status Pills */}
-          <div className="flex items-center gap-1">
+          <div className="pl-pill-group">
             {STATUSES.map(s => (
               <TogglePill key={s} label={s} active={status === s} onClick={() => setStatus(s)} />
             ))}
@@ -129,100 +127,93 @@ export default function ProblemList() {
         </div>
 
         {/* Problem Table */}
-        {loading ? (
-          <div className="space-y-0">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="skeleton-pulse h-14 mb-px" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          /* Empty state */
-          <div className="flex flex-col items-center justify-center py-16">
-            <Search size={48} className="text-[#E3E2E0] mb-4" />
-            <p className="text-[14px] text-[#9CA3AF] mb-2">No problems match your filters</p>
-            <button
-              onClick={clearFilters}
-              className="text-[13px] font-medium text-[#2EAADC] hover:underline"
-            >
-              Clear all filters
-            </button>
-          </div>
-        ) : (
-          <div className="border border-[#E3E2E0] rounded-[4px] overflow-hidden">
-            {/* Header */}
-            <div className="grid grid-cols-[40px_1fr_100px_200px_120px] items-center bg-white border-b-2 border-[#E3E2E0] sticky top-14 z-10">
-              <div className="py-3 px-3 text-[11px] font-bold text-[#9CA3AF] uppercase tracking-[0.05em]" />
-              <div className="py-3 px-4 text-[11px] font-bold text-[#9CA3AF] uppercase tracking-[0.05em]">Title</div>
-              <div className="py-3 px-4 text-[11px] font-bold text-[#9CA3AF] uppercase tracking-[0.05em]">Difficulty</div>
-              <div className="py-3 px-4 text-[11px] font-bold text-[#9CA3AF] uppercase tracking-[0.05em] hidden lg:block">Tags</div>
-              <div className="py-3 px-4 text-[11px] font-bold text-[#9CA3AF] uppercase tracking-[0.05em] hidden md:block">Last Attempted</div>
+        <div style={{ width: '100%' }}>
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="skeleton-pulse" style={{ height: '64px', width: '100%', borderRadius: '16px' }} />
+              ))}
             </div>
-
-            {/* Rows */}
-            {filtered.map(problem => (
-              <div
-                key={problem.id}
-                onClick={() => navigate(`/workspace/${problem.id}`)}
-                className="grid grid-cols-[40px_1fr_100px_200px_120px] items-center border-b border-[#E3E2E0] last:border-b-0
-                  hover:bg-[#F7F6F3] cursor-pointer transition-colors group h-14"
-              >
-                {/* Status */}
-                <div className="px-3 flex items-center justify-center">
-                  {problem.solved ? (
-                    <div className="w-3.5 h-3.5 rounded-full bg-[#10B981] flex items-center justify-center">
-                      <Check size={10} className="text-white" strokeWidth={3} />
-                    </div>
-                  ) : problem.attempts > 0 ? (
-                    <div className="w-3.5 h-3.5 rounded-full bg-[#F59E0B]" />
-                  ) : (
-                    <div className="w-3.5 h-3.5 rounded-full border border-[#E3E2E0] bg-white" />
-                  )}
-                </div>
-
-                {/* Title */}
-                <div className="px-4 py-3 min-w-0">
-                  <p className="text-[14px] font-medium text-[#37352F] group-hover:text-[#2EAADC] transition-colors truncate">
-                    {problem.title}
-                  </p>
-                  {!categoryFilter && (
-                    <p className="text-[12px] text-[#9CA3AF] truncate">{problem.category}</p>
-                  )}
-                </div>
-
-                {/* Difficulty */}
-                <div className="px-4">
-                  <span className={`text-[13px] font-medium ${
-                    problem.difficulty === 'Easy' ? 'text-[#10B981]' :
-                    problem.difficulty === 'Medium' ? 'text-[#F59E0B]' :
-                    'text-[#EF4444]'
-                  }`}>
-                    {problem.difficulty}
-                  </span>
-                </div>
-
-                {/* Tags */}
-                <div className="px-4 hidden lg:flex items-center gap-1 overflow-hidden">
-                  {(problem.tags || []).slice(0, 2).map(t => (
-                    <span key={t} className="text-[11px] text-[#9CA3AF] bg-[#F7F6F3] px-1.5 py-0.5 rounded-[4px] flex-shrink-0">
-                      {t}
-                    </span>
-                  ))}
-                  {(problem.tags || []).length > 2 && (
-                    <span className="text-[11px] text-[#B4B4B4]">+{problem.tags.length - 2}</span>
-                  )}
-                </div>
-
-                {/* Last Attempted */}
-                <div className="px-4 hidden md:flex items-center justify-between">
-                  <span className="text-[13px] text-[#9CA3AF]">
-                    {problem.attempts > 0 ? 'Attempted' : 'Never'}
-                  </span>
-                  <ArrowRight size={14} className="text-[#9CA3AF] opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
+          ) : filtered.length === 0 ? (
+            /* Empty state */
+            <div className="pl-empty-state">
+              <div className="pl-empty-icon">
+                <Search size={28} />
               </div>
-            ))}
-          </div>
-        )}
+              <h3 className="pl-empty-title">No problems found</h3>
+              <p className="pl-empty-desc">We couldn't find any problems matching your current filter criteria.</p>
+              <button onClick={clearFilters} className="pl-empty-btn">
+                Clear all filters
+              </button>
+            </div>
+          ) : (
+            <div className="pl-table-container">
+              {/* Header */}
+              <div className="pl-table-header">
+                <div className="pl-header-cell" />
+                <div className="pl-header-cell">Title</div>
+                <div className="pl-header-cell">Difficulty</div>
+                <div className="pl-header-cell lg-hide">Tags</div>
+                <div className="pl-header-cell md-hide">Last Attempted</div>
+              </div>
+
+              {/* Rows */}
+              <div className="pl-table-rows">
+                {filtered.map(problem => (
+                  <div
+                    key={problem.id}
+                    onClick={() => navigate(`/workspace/${problem.id}`)}
+                    className="pl-table-row"
+                  >
+                    {/* Status */}
+                    <div className="pl-status-wrapper">
+                      <div className={`pl-status-icon ${problem.solved ? 'solved' : problem.attempts > 0 ? 'attempted' : 'unattempted'}`}>
+                        {problem.solved && <Check size={14} strokeWidth={3.5} />}
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <div className="pl-row-cell">
+                      <p className="pl-title">{problem.title}</p>
+                      {!categoryFilter && (
+                        <p className="pl-category">{problem.category}</p>
+                      )}
+                    </div>
+
+                    {/* Difficulty */}
+                    <div className="pl-row-cell">
+                      <span className={`pl-diff-pill ${problem.difficulty.toLowerCase()}`}>
+                        {problem.difficulty}
+                      </span>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="pl-row-cell lg-hide pl-tags-container">
+                      {(problem.tags || []).slice(0, 3).map(t => (
+                        <span key={t} className="pl-tag">{t}</span>
+                      ))}
+                      {(problem.tags || []).length > 3 && (
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginLeft: '4px' }}>
+                          +{problem.tags.length - 3}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Last Attempted */}
+                    <div className="pl-row-cell md-hide">
+                      <span className="pl-last-attempt">
+                        {problem.attempts > 0 ? 'Attempted' : 'Unattempted'}
+                      </span>
+                      <div className="pl-arrow-btn">
+                        <ArrowRight size={16} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -233,11 +224,7 @@ function TogglePill({ label, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`text-[13px] font-medium px-3 py-1.5 rounded-[4px] transition-colors
-        ${active
-          ? 'bg-[#37352F] text-white'
-          : 'bg-white text-[#37352F] border border-[#E3E2E0] hover:bg-[#F7F6F3]'
-        }`}
+      className={`pl-pill ${active ? 'active' : ''}`}
     >
       {label}
     </button>

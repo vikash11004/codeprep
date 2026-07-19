@@ -1,91 +1,47 @@
-import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Search, Shuffle, Sun } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, Shuffle, Code2 } from 'lucide-react';
 
 export default function Navbar({ onCommandPalette, onGenerateRandom }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const isActive = (path) => {
-    if (path === '/') return location.pathname === '/' || location.pathname === '/library';
-    return location.pathname.startsWith(path);
-  };
-
   return (
-    <header className="h-14 flex-shrink-0 bg-white border-b border-[#E3E2E0] flex items-center justify-between px-4 sticky top-0 z-50">
-      {/* Left: Logo + Nav Links */}
-      <div className="flex items-center gap-6">
-        <Link to="/" className="flex items-center gap-2 group">
-          <span className="text-[18px] font-bold text-[#111111] tracking-tight">
-            CodePrep
-          </span>
-        </Link>
+    <header className="h-[72px] flex-shrink-0 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-center sticky top-0 z-50">
+      <div className="w-full max-w-[1200px] px-6 flex items-center justify-between">
+        
+        {/* Left: Search */}
+        <div className="flex-1 flex items-center justify-start">
+          <button
+            onClick={onCommandPalette}
+            className="flex items-center gap-2.5 w-full max-w-[280px] bg-slate-100 hover:bg-slate-200/70 border border-slate-200/60 rounded-full h-[42px] px-4 transition-all duration-200 group cursor-text"
+          >
+            <Search size={16} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <span className="text-[14px] flex-1 text-left text-slate-500 font-medium">Search problems...</span>
+          </button>
+        </div>
 
-        <nav className="flex items-center gap-1">
-          <NavLink to="/" label="Library" active={isActive('/')} />
+        {/* Center: Logo */}
+        <div className="flex-1 flex justify-center items-center">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="w-[34px] h-[34px] rounded-[10px] bg-slate-900 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-200">
+              <Code2 size={18} className="text-white" strokeWidth={2.5} />
+            </div>
+            <span className="text-[22px] font-extrabold text-slate-900 tracking-tight">
+              CodePrep
+            </span>
+          </Link>
+        </div>
 
-        </nav>
-      </div>
-
-      {/* Center: Search */}
-      <div className="hidden md:flex items-center justify-center flex-1 max-w-[400px] mx-8">
-        <button
-          onClick={onCommandPalette}
-          className="flex items-center gap-2 w-full bg-[#F7F6F3] border border-[#E3E2E0] rounded-[4px] h-9 px-3
-            text-[#9CA3AF] hover:border-[#D1D1CF] focus:border-[#2EAADC] transition-colors cursor-text"
-        >
-          <Search size={16} className="text-[#9CA3AF] flex-shrink-0" />
-          <span className="text-[13px] flex-1 text-left">Search problems, topics, or commands...</span>
-          <span className="text-[11px] font-mono text-[#B4B4B4] bg-white px-1.5 py-0.5 rounded-[4px] border border-[#E3E2E0]">⌘K</span>
-        </button>
-      </div>
-
-      {/* Right: Actions */}
-      <div className="flex items-center gap-3">
+        {/* Right: Actions */}
+        <div className="flex-1 flex justify-end items-center">
           <button
             onClick={onGenerateRandom}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-[13px] font-medium
-              text-[#2EAADC] border border-[#2EAADC]
-              hover:bg-[#2EAADC] hover:text-white transition-colors"
+            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-bold
+              text-[#2EAADC] hover:bg-[#2EAADC]/10 transition-all duration-200"
           >
-            <Shuffle size={14} />
-            Generate Random
+            <Shuffle size={16} strokeWidth={2.5} />
+            Random Problem
           </button>
-
-        <button 
-          onClick={() => {
-            document.documentElement.classList.toggle('dark');
-            alert('Theme toggled. Note: Full dark mode styling requires additional CSS rules.');
-          }}
-          className="p-2 rounded-[4px] text-[#9CA3AF] hover:text-[#37352F] transition-colors"
-        >
-          <Sun size={20} />
-        </button>
-
-        <button 
-          onClick={() => alert('Profile and settings are coming soon!')}
-          className="w-8 h-8 rounded-full bg-[#F7F6F3] flex items-center justify-center text-[12px] font-semibold text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
-        >
-          A
-        </button>
+        </div>
+        
       </div>
     </header>
-  );
-}
-
-function NavLink({ to, label, active }) {
-  return (
-    <Link
-      to={to}
-      className={`relative px-3 py-1.5 text-[14px] font-medium transition-colors rounded-[4px]
-        ${active
-          ? 'text-[#111111]'
-          : 'text-[#9CA3AF] hover:text-[#37352F]'
-        }`}
-    >
-      {label}
-      {active && (
-        <span className="absolute bottom-[-13px] left-3 right-3 h-[2px] bg-[#2EAADC] rounded-full" />
-      )}
-    </Link>
   );
 }
