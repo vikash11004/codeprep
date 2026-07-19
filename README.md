@@ -1,6 +1,6 @@
 # CodePrep — AI Coding Interview Coach
 
-CodePrep is an intelligent, Notion-inspired platform designed to help developers master coding interviews. It features a curated list of algorithmic patterns, an integrated code editor, and an AI-powered coach that provides structured hints and diagnosis without spoiling the solution.
+CodePrep is an intelligent platform designed to help developers master coding interviews. It features a curated list of algorithmic patterns, an integrated code editor, and an AI-powered coach that provides structured hints and diagnosis without spoiling the solution.
 
 ## Features
 
