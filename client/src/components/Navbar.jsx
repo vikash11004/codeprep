@@ -22,7 +22,7 @@ export default function Navbar({ onCommandPalette, onGenerateRandom }) {
 
         <nav className="flex items-center gap-1">
           <NavLink to="/" label="Library" active={isActive('/')} />
-          <NavLink to="/analytics" label="Analytics" active={isActive('/analytics')} />
+
         </nav>
       </div>
 
@@ -41,7 +41,6 @@ export default function Navbar({ onCommandPalette, onGenerateRandom }) {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-3">
-        {location.pathname !== '/analytics' && (
           <button
             onClick={onGenerateRandom}
             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-[13px] font-medium
@@ -51,7 +50,6 @@ export default function Navbar({ onCommandPalette, onGenerateRandom }) {
             <Shuffle size={14} />
             Generate Random
           </button>
-        )}
 
         <button 
           onClick={() => {

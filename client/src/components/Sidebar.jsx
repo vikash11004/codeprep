@@ -17,8 +17,7 @@ export default function Sidebar({ isOpen, onCommandPalette }) {
 
   const isWorkspace = location.pathname.startsWith('/workspace');
   const navActive = (path) => {
-    if (path === '/') return !isWorkspace && location.pathname !== '/analytics';
-    if (path === '/analytics') return location.pathname === '/analytics';
+    if (path === '/') return !isWorkspace;
     return false;
   };
 
@@ -58,12 +57,7 @@ export default function Sidebar({ isOpen, onCommandPalette }) {
           to="/" 
           active={navActive('/')} 
         />
-        <NavItem 
-          icon={<BarChart2 size={16} />} 
-          label="Analytics" 
-          to="/analytics" 
-          active={navActive('/analytics')} 
-        />
+
         <button
           onClick={onCommandPalette}
           className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-text-secondary hover:bg-[#EAE9E5] transition-colors group"

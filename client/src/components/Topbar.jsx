@@ -6,13 +6,11 @@ export default function Topbar({ onCommandPalette, onToggleSidebar, onRunCode, i
   const navigate = useNavigate();
 
   const isWorkspace = location.pathname.startsWith('/workspace');
-  const isAnalytics = location.pathname.startsWith('/analytics');
+
   
   let breadcrumb = 'Library';
   if (isWorkspace) {
     breadcrumb = 'Workspace > Problem';
-  } else if (isAnalytics) {
-    breadcrumb = 'Analytics';
   }
 
   return (

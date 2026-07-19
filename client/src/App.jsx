@@ -5,7 +5,7 @@ import Navbar from './components/Navbar';
 import CommandPalette from './components/CommandPalette';
 import Dashboard from './pages/Dashboard';
 import Workspace from './pages/Workspace';
-import Analytics from './pages/Analytics';
+
 import ProblemList from './pages/ProblemList';
 
 function AppLayout() {
@@ -53,7 +53,7 @@ function AppLayout() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/library" element={<ProblemList />} />
           <Route path="/workspace/:problemId" element={<Workspace />} />
-          <Route path="/analytics" element={<Analytics />} />
+
         </Routes>
       </main>
 

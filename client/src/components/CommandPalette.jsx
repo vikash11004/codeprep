@@ -18,7 +18,7 @@ export default function CommandPalette({ isOpen, onClose }) {
 
   const actions = [
     { id: 'lib', label: 'Go to Library', icon: <LayoutGrid size={16} />, onClick: () => { navigate('/'); onClose(); } },
-    { id: 'stat', label: 'Go to Analytics', icon: <BarChart2 size={16} />, onClick: () => { navigate('/analytics'); onClose(); } },
+
     { id: 'all', label: 'View All Problems', icon: <Search size={16} />, onClick: () => { navigate('/library'); onClose(); } },
     { id: 'rand', label: 'Generate Random Problem', icon: <Shuffle size={16} />, onClick: () => { onClose(); } },
     { id: 'paste', label: 'Paste Custom Problem', icon: <FileText size={16} />, onClick: () => { onClose(); } },
