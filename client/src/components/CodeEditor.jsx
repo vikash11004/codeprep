@@ -11,7 +11,7 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { oneDark, oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 
-export const DEFAULT_CODE = {
+const DEFAULT_CODE = {
   'JavaScript': `// Write your solution here
 function solution(input) {
   // Your code here
@@ -53,6 +53,7 @@ void solution() {
 };
 
 const languageConf = new Compartment();
+const readOnlyConf = new Compartment();
 
 function getLanguageExtension(lang) {
   switch (lang?.toLowerCase()) {
@@ -72,23 +73,27 @@ function getLanguageExtension(lang) {
   }
 }
 
-export default function CodeEditor({ value, onChange, defaultValue, language = 'C++' }) {
+export default function CodeEditor({ value, onChange, defaultValue, language = 'JavaScript', readOnly = false }) {
   const containerRef = useRef(null);
   const viewRef = useRef(null);
+  const changeRef = useRef(onChange);
+  changeRef.current = onChange;
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const updateListener = EditorView.updateListener.of((update) => {
-      if (update.docChanged && onChange) {
-        onChange(update.state.doc.toString());
+      if (update.docChanged && changeRef.current) {
+        changeRef.current(update.state.doc.toString());
       }
     });
 
     const state = EditorState.create({
-      doc: value || defaultValue || DEFAULT_CODE[language] || DEFAULT_CODE['C++'],
+      doc: value ?? defaultValue ?? DEFAULT_CODE[language] ?? '',
       extensions: [
         lineNumbers(),
+        EditorView.contentAttributes.of({ 'aria-label': 'Solution code editor' }),
+        readOnlyConf.of(EditorState.readOnly.of(readOnly)),
         highlightActiveLine(),
         highlightActiveLineGutter(),
         drawSelection(),
@@ -113,7 +118,7 @@ export default function CodeEditor({ value, onChange, defaultValue, language = '
           '&': {
             fontSize: '14px',
             height: '100%',
-            backgroundColor: '#0b1120',
+            backgroundColor: '#0c151b',
             color: '#e5e7eb',
           },
           '.cm-content': {
@@ -123,7 +128,7 @@ export default function CodeEditor({ value, onChange, defaultValue, language = '
           },
           '.cm-gutters': {
             borderRight: '1px solid #1f2937',
-            backgroundColor: '#0b1120',
+            backgroundColor: '#0c151b',
             color: '#64748b',
           },
           '.cm-activeLineGutter': {
@@ -171,10 +176,12 @@ export default function CodeEditor({ value, onChange, defaultValue, language = '
     }
   }, [language]);
 
+  useEffect(() => { viewRef.current?.dispatch({ effects: readOnlyConf.reconfigure(EditorState.readOnly.of(readOnly)) }); }, [readOnly]);
+
   return (
     <div 
       ref={containerRef} 
-      className="h-full overflow-hidden border border-surface-500 bg-surface-800 rounded"
+      className="code-editor"
     />
   );
 }

@@ -16,17 +16,20 @@ export default function ProblemList() {
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState('All');
   const [status, setStatus] = useState('All');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadProblems();
   }, []);
 
   const loadProblems = async () => {
+    setError(''); setLoading(true);
     try {
       const data = await api.getProblems();
       setProblems(data);
     } catch (err) {
-      console.error('Failed to load problems:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -34,6 +37,7 @@ export default function ProblemList() {
 
   const filtered = useMemo(() => {
     return problems.filter(p => {
+      if (verifiedOnly && p.coverage !== 'verified') return false;
       // Category filter
       if (categoryFilter && p.category !== categoryFilter) return false;
 
@@ -56,7 +60,7 @@ export default function ProblemList() {
 
       return true;
     });
-  }, [problems, categoryFilter, search, difficulty, status]);
+  }, [problems, categoryFilter, search, difficulty, status, verifiedOnly]);
 
   const solvedCount = useMemo(() => {
     const pool = categoryFilter ? problems.filter(p => p.category === categoryFilter) : problems;
@@ -71,10 +75,11 @@ export default function ProblemList() {
     setSearch('');
     setDifficulty('All');
     setStatus('All');
+    setVerifiedOnly(false);
   };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg-secondary)', width: '100%' }}>
+    <div style={{ height: '100%', overflowY: 'auto', width: '100%' }}>
       <div className="pl-container">
         
         {/* Back link */}
@@ -103,6 +108,7 @@ export default function ProblemList() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search problems..."
+              aria-label="Search problems"
               className="pl-search-input"
             />
           </div>
@@ -125,6 +131,9 @@ export default function ProblemList() {
             ))}
           </div>
         </div>
+
+        <label className="coverage-filter"><input type="checkbox" checked={verifiedOnly} onChange={e => setVerifiedOnly(e.target.checked)} /> Show only problems with verified test suites <span>({problems.filter(p => p.coverage === 'verified').length})</span></label>
+        {error && <div className="error-message" role="alert">{error} <button className="text-button" onClick={loadProblems}>Retry</button></div>}
 
         {/* Problem Table */}
         <div style={{ width: '100%' }}>
@@ -160,7 +169,7 @@ export default function ProblemList() {
               {/* Rows */}
               <div className="pl-table-rows">
                 {filtered.map(problem => (
-                  <div
+                  <button
                     key={problem.id}
                     onClick={() => navigate(`/workspace/${problem.id}`)}
                     className="pl-table-row"
@@ -175,6 +184,7 @@ export default function ProblemList() {
                     {/* Title */}
                     <div className="pl-row-cell">
                       <p className="pl-title">{problem.title}</p>
+                      <span className="coverage-badge">{problem.coverage === 'verified' ? `${problem.testCount} verified tests` : problem.testCount ? `${problem.testCount} sample checks` : 'Statement only · add tests'}</span>
                       {!categoryFilter && (
                         <p className="pl-category">{problem.category}</p>
                       )}
@@ -208,7 +218,7 @@ export default function ProblemList() {
                         <ArrowRight size={16} />
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -224,6 +234,7 @@ function TogglePill({ label, active, onClick }) {
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={`pl-pill ${active ? 'active' : ''}`}
     >
       {label}

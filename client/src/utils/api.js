@@ -5,7 +5,7 @@ const API_BASE = import.meta.env.VITE_API_URL
 function getSessionId() {
   let sessionId = localStorage.getItem('codeprep-session-id');
   if (!sessionId) {
-    sessionId = 'session-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    sessionId = crypto.randomUUID();
     localStorage.setItem('codeprep-session-id', sessionId);
   }
   return sessionId;
@@ -27,8 +27,9 @@ async function apiRequest(endpoint, options = {}) {
     config.body = JSON.stringify(config.body);
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, config);
-  const data = await response.json();
+  const response = await fetch(`${API_BASE}${endpoint}`, { ...config, signal: AbortSignal.timeout(120000) });
+  let data;
+  try { data = await response.json(); } catch { throw new Error('The API is unavailable. Start the backend with npm run dev and retry.'); }
 
   if (!response.ok) {
     const error = new Error(data.error || data.message || 'API request failed');
@@ -41,6 +42,7 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 export const api = {
+  getHealth: () => apiRequest('/health'),
   // Problems catalog
   getProblems: () => apiRequest('/problems'),
   getProblem: (id) => apiRequest(`/problems/${id}`),
@@ -75,21 +77,21 @@ export const api = {
   }),
 
   // Code execution
-  runCode: (code, language, testCases) => apiRequest('/run', {
+  runCode: (code, language, problem, customCases = []) => apiRequest('/run', {
     method: 'POST',
-    body: { code, language, testCases },
+    body: { code, language, problemId: problem.id, customCases },
   }),
 
   // Diagnosis
-  diagnose: (problem, code, language, testResults) => apiRequest('/diagnose', {
+  diagnose: (problem, code, language) => apiRequest('/diagnose', {
     method: 'POST',
-    body: { problem, code, language, testResults, sessionId: getSessionId() },
+    body: { problem, code, language, consent: true },
   }),
 
   // Solution (locked behind hint)
   getSolution: (problem, language, code) => apiRequest('/solution', {
     method: 'POST',
-    body: { problem, language, code, sessionId: getSessionId() },
+    body: { problem, language, code, consent: true },
   }),
 
   // Session analytics

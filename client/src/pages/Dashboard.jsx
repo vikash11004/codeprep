@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../utils/api';
 import { ArrowRight, ClipboardPaste, Globe2, Grid3x3, ArrowLeftRight, PanelLeft, Layers, SearchCode, Link2, GitFork, Network, Triangle, Undo2, Share2, SquareStack, Flag, GanttChart, Shapes, ToggleLeft } from 'lucide-react';
 import InputModal from '../components/InputModal';
-import WarningModal from '../components/WarningModal';
 
 const CATEGORY_ICONS = {
   'Arrays & Hashing': Grid3x3, 'Two Pointers': ArrowLeftRight, 'Sliding Window': PanelLeft,
@@ -20,12 +19,12 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ solved: 0, passRate: 0, weekly: 0, streak: 0 });
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('text');
-  const [warningModal, setWarningModal] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([api.getProblems(), api.getStats()])
       .then(([catalog, sessionStats]) => { setProblems(catalog); setStats(sessionStats); })
-      .catch((error) => console.error('Failed to load dashboard:', error))
+      .catch((error) => setError(error.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -51,45 +50,33 @@ export default function Dashboard() {
 
   const continueProblem = useMemo(() => problems.find(p => p.attempts > 0 && !p.solved) || problems[0], [problems]);
 
-  async function handleInputSubmit(value, mode) {
-    try {
-      const result = mode === 'url' ? await api.interpretUrl(value) : await api.interpretText(value);
-      if (!result.isValidProblem) throw new Error('We could not identify a coding problem in that content.');
-      sessionStorage.setItem('codeprep-custom-problem', JSON.stringify(result));
-      setModalOpen(false);
-      navigate('/workspace/custom');
-    } catch (error) {
-      if (error.data?.suggestion) {
-        setModalOpen(false);
-        setWarningModal({ title: 'Import needs your help', message: error.data.error || error.message, suggestion: error.data.suggestion });
-      }
-      throw error;
-    }
-  }
+  function handleInputSubmit(result) { setModalOpen(false); navigate(`/workspace/${result.id}`); }
 
   function openImporter(mode) { setModalMode(mode); setModalOpen(true); }
 
   return (
     <div className="dashboard-page h-full overflow-y-auto">
       <div className="dashboard-shell">
+        <div className="dashboard-welcome"><span><i className="status-dot" /> A little practice. A little progress.</span><span>Your personal coding workspace</span></div>
+        {error && <div className="error-message" role="alert">{error}<button className="text-button" onClick={() => window.location.reload()}>Retry connection</button></div>}
         <section className="practice-hero">
           <div className="practice-hero-copy">
-            <div className="eyebrow">CodePrep workspace</div>
-            <h1>Practice with a clearer path.</h1>
-            <p>Choose a pattern, solve intentionally, and get instant feedback in one focused space.</p>
-            <div className="hero-metrics">
+            <div className="eyebrow">Built for your next breakthrough</div>
+            <h1>Less guessing.<br />More <em>“I’ve got this.”</em></h1>
+            <p>A quiet space for big ideas. Master the patterns, put your code to the test, and build understanding that stays with you.</p>
+            <div className="hero-cta"><button className="button-primary" onClick={() => navigate('/library')}>Find your next challenge <ArrowRight size={15} /></button><button className="button-secondary" onClick={() => openImporter('url')}><Globe2 size={15} /> Import a problem</button></div>
+          </div>
+          <div className="practice-actions">
+            <div className="focus-card"><div className="focus-header"><span>{continueProblem?.attempts ? 'PICK UP WHERE YOU LEFT OFF' : 'A GOOD PLACE TO START'}</span><span className="focus-dots"><i /><i /><i /></span></div><h3>{continueProblem?.title || 'Your next challenge'}</h3><p>{continueProblem?.category || 'Choose a pattern to begin'} · {continueProblem?.difficulty || 'At your own pace'}</p><div className="focus-code"><span>// one thoughtful attempt at a time</span><br />understand → solve → test → reflect</div><button className="focus-start" disabled={!continueProblem} onClick={() => navigate(`/workspace/${continueProblem.id}`)}>{continueProblem?.attempts ? 'Continue practice' : 'Open the workspace'} <ArrowRight size={16} /></button></div>
+            <button className="import-link-row" onClick={() => openImporter('text')}><ClipboardPaste size={13} /> Have a problem in mind? Paste the statement <ArrowRight size={12} /></button>
+          </div>
+        </section>
+        <div className="hero-metrics">
               <Metric label="Solved" value={stats.solved} />
               <Metric label="Pass rate" value={`${stats.passRate || 0}%`} />
               <Metric label="This week" value={stats.weekly || 0} />
               <Metric label="Streak" value={stats.streak ? `${stats.streak} days` : 'Start today'} />
-            </div>
-          </div>
-          <div className="practice-actions">
-            {continueProblem && <button className="action-primary" onClick={() => navigate(`/workspace/${continueProblem.id}`)}>Continue <span>{continueProblem.title}</span><ArrowRight size={17} /></button>}
-            <button className="action-secondary" onClick={() => openImporter('text')}><ClipboardPaste size={17} /> Paste a problem</button>
-            <button className="action-secondary" onClick={() => openImporter('url')}><Globe2 size={17} /> Import public URL</button>
-          </div>
-        </section>
+        </div>
 
         <section className="topic-section">
           <div className="section-heading">
@@ -99,9 +86,9 @@ export default function Dashboard() {
           {loading ? <div className="topic-grid">{Array.from({ length: 6 }, (_, index) => <div key={index} className="topic-card topic-skeleton" />)}</div> :
             <div className="topic-grid">{categories.map(category => <TopicCard key={category.name} category={category} navigate={navigate} />)}</div>}
         </section>
+        <footer className="dashboard-footer"><span>Real compilers. Thoughtful practice. Help when you ask.</span><span>{stats.verifiedProblems || '—'} problems with verified suites · {problems.length} in the library</span></footer>
       </div>
-      <InputModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleInputSubmit} mode={modalMode} />
-      {warningModal && <WarningModal isOpen onClose={() => setWarningModal(null)} {...warningModal} />}
+      {modalOpen && <InputModal isOpen onClose={() => setModalOpen(false)} onSubmit={handleInputSubmit} mode={modalMode} />}
     </div>
   );
 }

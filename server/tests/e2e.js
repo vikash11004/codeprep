@@ -1,0 +1,62 @@
+import { fileURLToPath } from 'node:url';
+import { mkdir } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+process.env.PLAYWRIGHT_BROWSERS_PATH ||= fileURLToPath(new URL('../.tools/browsers/', import.meta.url));
+const { chromium } = await import('playwright');
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+const page = await context.newPage();
+const errors = []; const aiCalls = [];
+page.on('pageerror', e => errors.push(e.message));
+page.on('request', r => { if (/\/api\/(diagnose|solution)$/.test(r.url())) aiCalls.push(r.url()); });
+const out = fileURLToPath(new URL('../../test-results/', import.meta.url)); await mkdir(out, { recursive: true });
+const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:5173';
+try {
+  await page.goto(base); await page.getByRole('heading', { name: 'Browse by pattern' }).waitFor();
+  await page.getByRole('button', { name: /All 390 problems/ }).waitFor();
+  await page.screenshot({ path: out + '/overview-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: /Find your next challenge/ }).click();
+  await page.getByRole('checkbox', { name: /verified test suites/ }).check();
+  await page.getByText('Two Sum', { exact: true }).click();
+  await page.getByRole('textbox', { name: 'Solution code editor' }).waitFor();
+  await page.getByRole('button', { name: /Learning coach/ }).click();
+  await page.getByText('Your thinking comes first.').waitFor(); assert.equal(aiCalls.length, 0);
+  const editor = page.getByRole('textbox', { name: 'Solution code editor' });
+  await editor.fill('function solution(nums, target) { return []; }');
+  await page.getByRole('button', { name: 'Run tests' }).click();
+  await page.getByText('Keep going', { exact: true }).waitFor(); assert.equal(aiCalls.length, 0, 'Failed runs must not call AI');
+  await page.getByRole('button', { name: 'Choose help →' }).click();
+  await page.getByRole('button', { name: 'See solution' }).waitFor();
+  // Browser tests use a deterministic AI response. API tests independently check the server gate.
+  await page.route('**/api/solution', route => route.fulfill({ json: { solutionCode: 'function solution(nums, target) { /* reference */ }', solutionExplanation: 'Store previously visited values in a map.', whyThisApproach: 'Only earlier indices are in the map, so an element is never reused.', walkthrough: 'For [2,7], remember 2, then find it as the complement of 7.', tricks: ['Look up the complement before storing the current number.'], timeComplexity: 'O(n)', spaceComplexity: 'O(n)', keyInsight: 'Remember what you have already seen.' } }));
+  const reveal = page.getByRole('button', { name: 'See solution' });
+  if (await reveal.isEnabled()) {
+    await reveal.click(); assert.equal(aiCalls.length, 0); await page.getByRole('button', { name: 'Keep trying' }).click(); assert.equal(aiCalls.length, 0);
+    await reveal.click(); await page.getByRole('button', { name: 'Reveal & explain' }).click(); await page.getByRole('heading', { name: 'Why this works' }).waitFor(); assert.equal(aiCalls.length, 1);
+  }
+  const good = 'function solution(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    if (seen.has(target - nums[i])) return [seen.get(target - nums[i]), i];\n    seen.set(nums[i], i);\n  }\n}';
+  await editor.fill(good);
+  await page.getByRole('button', { name: 'Run tests' }).click(); await page.getByText('Accepted', { exact: true }).waitFor();
+  await page.screenshot({ path: out + '/workspace-desktop.png', fullPage: true });
+  await page.getByRole('combobox', { name: 'Programming language' }).selectOption('Python'); await page.getByText('solution.py', { exact: true }).waitFor();
+  await page.getByRole('textbox', { name: 'Solution code editor' }).fill('def solution(nums, target):\n    return []');
+  await page.getByRole('combobox', { name: 'Programming language' }).selectOption('JavaScript');
+  await page.waitForFunction(() => document.querySelector('.cm-content')?.textContent.includes('new Map'));
+  await page.reload(); await page.waitForFunction(() => document.querySelector('.cm-content')?.textContent.includes('new Map'));
+  await page.goto(base); await page.getByRole('button', { name: 'Import a problem', exact: true }).click();
+  await page.getByRole('button', { name: 'Paste text' }).click();
+  await page.getByRole('textbox', { name: 'Problem statement' }).fill('Add Two Values\nGiven two integers a and b, return their sum.\nInput: a = 2, b = 3\nOutput: 5');
+  await page.getByRole('button', { name: 'Import & review' }).click(); await page.getByRole('heading', { name: 'Review your problem' }).waitFor();
+  await page.getByRole('button', { name: 'Open workspace' }).click(); await page.getByRole('textbox', { name: 'Solution code editor' }).fill('function solution(a, b) { return a + b; }');
+  await page.getByRole('button', { name: 'Run tests' }).click(); await page.getByText('Samples passed · not fully verified', { exact: true }).waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Problem', exact: true }).click(); await page.getByRole('heading', { name: 'Add Two Values' }).waitFor();
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await page.getByRole('button', { name: 'Code & results', exact: true }).click(); await page.screenshot({ path: out + '/workspace-mobile.png', fullPage: true });
+  await page.goto(base); await page.getByRole('heading', { name: 'Browse by pattern' }).waitFor();
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await page.screenshot({ path: out + '/overview-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Import a problem', exact: true }).click(); await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  assert.deepEqual(errors, []);
+  console.log('PASS: desktop/mobile navigation, import review, real grading, draft persistence, language switching, explicit solution consent, dialog Escape, no browser errors.');
+} finally { await browser.close(); }

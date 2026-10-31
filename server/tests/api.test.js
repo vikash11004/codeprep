@@ -1,0 +1,47 @@
+import test, { after } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+process.env.CODEPREP_DATA_DIR = await mkdtemp(join(tmpdir(), 'codeprep-api-tests-'));
+process.env.GROQ_API_KEY = '';
+const { app } = await import('../app.js');
+const server = app.listen(0, '127.0.0.1');
+await new Promise(resolve => server.once('listening', resolve));
+const base = `http://127.0.0.1:${server.address().port}/api`;
+const session = randomUUID();
+async function request(path, body, extra = {}) {
+  const response = await fetch(base + path, { method: body ? 'POST' : 'GET', headers: { 'x-session-id': session, 'Content-Type': 'application/json', ...extra }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  return { status: response.status, body: await response.json() };
+}
+after(async () => { await new Promise(resolve => server.close(resolve)); await rm(process.env.CODEPREP_DATA_DIR, { recursive: true, force: true }); });
+test('catalog, import, grading, persistence and coaching gates form a complete workflow', async () => {
+  const health = await request('/health'); assert.equal(health.body.aiAvailable, false);
+  const problems = await request('/problems'); assert.equal(problems.body.length, 390);
+  const problem = problems.body.find(p => p.id === 'two-sum'); assert.equal(problem.testCount, 256);
+  const code = 'function solution(nums,target){const seen=new Map();for(let i=0;i<nums.length;i++){if(seen.has(target-nums[i]))return [seen.get(target-nums[i]),i];seen.set(nums[i],i);}}';
+  const help = { problemId: 'two-sum', code, language: 'JavaScript', consent: true };
+  assert.equal((await request('/solution', help)).status, 403);
+  const forged = await request('/run', { ...help, code: 'function solution(){return [];}', testCases: [{ input: '[]', expectedOutput: '[]' }] });
+  assert.equal(forged.body.summary.total, 256); assert.equal(forged.body.accepted, false);
+  assert.equal((await request('/diagnose', { ...help, code: 'function solution(){return [];}', consent: false })).status, 403);
+  const offline = await request('/diagnose', { ...help, code: 'function solution(){return [];}' });
+  assert.equal(offline.status, 200); assert.equal(offline.body.aiGenerated, false);
+  const reference = await request('/solution', { ...help, code: 'function solution(){return [];}' });
+  assert.equal(reference.status, 200); assert.ok(reference.body.whyThisApproach); assert.equal(reference.body.referenceLanguage, 'JavaScript');
+  assert.equal((await request('/solution', { ...help, problemId: 'valid-anagram', code: 'function solution(){return [];}' })).status, 403);
+  const good = await request('/run', help); assert.equal(good.body.accepted, true);
+  assert.equal((await request('/solution', help)).status, 403, 'A successful run does not unlock coaching');
+  const stats = (await request('/stats')).body; assert.equal(stats.solved, 1); assert.equal(stats.weekly, 2); assert.equal(stats.streak, 1);
+  const state = (await request('/problems/two-sum')).body; assert.equal(state.solved, true); assert.equal(state.attempts, 2);
+  const imported = await request('/interpret', { rawText: 'Add Two Values\nGiven two integer values, return their sum as an integer.\nInput: a = 2, b = 3\nOutput: 5\nConstraints:\n-100 <= a,b <= 100' });
+  assert.equal(imported.status, 200); assert.ok(imported.body.id); assert.equal(imported.body.coverage, 'samples');
+  const customId = imported.body.id;
+  const sample = await request('/run', { problemId: customId, code: 'function solution(a,b){return a+b;}', language: 'JavaScript', customCases: [{ input: 'a = -4, b = 3', expectedOutput: '-1' }] });
+  assert.equal(sample.body.summary.total, 2); assert.equal(sample.body.allPassed, true); assert.equal(sample.body.accepted, false);
+  assert.equal((await request('/problems/' + customId)).body.title, 'Add Two Values');
+  const malformed = await request('/run', { ...help, customCases: [{ input: 'x = process.exit()', expectedOutput: '0' }] }); assert.equal(malformed.status, 400);
+  assert.equal((await request('/session/another-session/summary')).status, 403);
+  assert.equal((await request('/run', help, { Origin: 'https://attacker.example' })).status, 403);
+});

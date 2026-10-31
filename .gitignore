@@ -6,3 +6,11 @@ dist/
 build/
 .vscode/
 .agents/
+server/.tools/
+server/data/local/
+server/vendor/json.hpp
+server/vendor/gson.jar
+test-results/
+playwright-report/
+*.log
+!.env.example

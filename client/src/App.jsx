@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { api } from './utils/api';
 import Navbar from './components/Navbar';
 import CommandPalette from './components/CommandPalette';
 import Dashboard from './pages/Dashboard';
-import Workspace from './pages/Workspace';
+const Workspace = lazy(() => import('./pages/Workspace'));
 
 import ProblemList from './pages/ProblemList';
 
@@ -18,7 +18,7 @@ function AppLayout() {
     try {
       const problems = await api.getProblems();
       if (!problems || problems.length === 0) return;
-      const unsolved = problems.filter(p => !p.solved);
+      const unsolved = problems.filter(p => !p.solved && p.coverage === 'verified');
       const pool = unsolved.length > 0 ? unsolved : problems;
       const random = pool[Math.floor(Math.random() * pool.length)];
       navigate(`/workspace/${random.id}`);
@@ -39,7 +39,7 @@ function AppLayout() {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden">
+    <div className="app-shell">
       {/* Navbar: hidden on workspace */}
       {!isWorkspace && (
         <Navbar
@@ -52,7 +52,8 @@ function AppLayout() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/library" element={<ProblemList />} />
-          <Route path="/workspace/:problemId" element={<Workspace />} />
+          <Route path="/workspace/:problemId" element={<Suspense fallback={<div className="workspace-loading">Opening editor…</div>}><Workspace /></Suspense>} />
+          <Route path="*" element={<div className="workspace-loading"><h1>Page not found</h1><a href="/">Back to overview</a></div>} />
 
         </Routes>
       </main>
