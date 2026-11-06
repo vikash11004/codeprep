@@ -29,6 +29,13 @@ test('SSRF guards block loopback, private, mapped IPv6 and DNS resolutions', asy
   for (const url of ['file:///etc/passwd', 'http://localhost', 'http://2130706433', 'http://[::1]', 'http://example.com:3001', 'http://user:pass@example.com']) await assert.rejects(validateUrl(url));
   await assert.rejects(validateUrl('https://example.com', async () => [{ address: '10.0.0.1', family: 4 }]));
 });
+
+test('competitive-programming samples exclude I/O specifications and sidebar navigation', () => {
+  const p = extractPage(`<h1>Count Down</h1><div class="content"><div class="md"><p>Given a positive integer n, print all integers from n down to one.</p><h1>Input</h1><p>The only input line contains an integer n.</p><h1>Output</h1><p>Print the numbers in descending order.</p><h1>Constraints</h1><p>1 &lt;= n &lt;= 100</p><h1>Example</h1><p>Input:</p><pre>3\n</pre><p>Output:</p><pre>3 2 1\n</pre></div></div><div class="nav sidebar">Other tasks and submissions</div>`);
+  assert.deepEqual(p.examples, [{ input: '3', output: '3 2 1', explanation: '' }]);
+  assert.ok(!p.description.includes('Other tasks'));
+  assert.deepEqual(p.constraints, ['1 <= n <= 100']);
+});
 test('comparators respect answer semantics and reject malformed results', () => {
   assert.ok(compareOutput([1, 0], [0, 1], 'two-sum', [[3, 3], 6]));
   for (const bad of [[0, 0], [0, 2], ['0', '1'], null]) assert.equal(compareOutput(bad, [0, 1], 'two-sum', [[3, 3], 6]), false);

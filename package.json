@@ -5,11 +5,13 @@
   "scripts": {
     "setup": "npm --prefix server ci && npm --prefix client ci && npm --prefix server run setup",
     "setup:compilers": "npm --prefix server run setup:compilers",
+    "setup:scrapling": "npm --prefix server run setup:scrapling",
     "dev": "node scripts/dev.mjs",
     "start": "npm --prefix server start",
     "build": "npm --prefix client run build",
     "test": "npm --prefix server test",
     "test:e2e": "npm --prefix server run test:e2e",
+    "test:imports": "npm --prefix server run test:imports",
     "lint": "npm --prefix client run lint"
   }
 }

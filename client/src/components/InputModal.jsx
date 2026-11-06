@@ -26,10 +26,10 @@ export default function InputModal({ isOpen, onClose, onSubmit, mode: initialMod
       <form onSubmit={importProblem}>
         <label className="field-label" htmlFor="problem-input">{mode === 'url' ? 'Problem URL' : 'Problem statement'}</label>
         {mode === 'url' ? <input id="problem-input" type="url" required value={url} onChange={e => setUrl(e.target.value)} placeholder="https://leetcode.com/problems/two-sum/" /> : <textarea id="problem-input" required rows={12} value={text} onChange={e => setText(e.target.value)} placeholder={'Add the title, description, constraints, and examples.\n\nInput: nums = [2,7,11,15], target = 9\nOutput: [0,1]'} />}
-        <p className="field-help">{mode === 'url' ? 'Structured data → public page → browser rendering. Sign-in and CAPTCHA pages may need pasted text.' : 'No AI needed. Input / Output examples become runnable sample checks.'}</p>
+        <p className="field-help">{mode === 'url' ? 'We try several ways to read the public statement. Sign-in and CAPTCHA pages may need pasted text.' : 'No AI needed. Input / Output examples become runnable sample checks.'}</p>
         {error && <div className="error-message" role="alert">{error}{mode === 'url' && <button type="button" className="text-button" onClick={() => { setMode('text'); setError(''); }}>Paste the statement instead <ArrowRight size={14} /></button>}</div>}
         <div className="dialog-actions"><button type="button" className="button-secondary" onClick={onClose}>Cancel</button><button className="button-primary" disabled={loading || !(mode === 'url' ? url : text).trim()}>{loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}{loading ? 'Reading the problem…' : 'Import & review'}</button></div>
-        {loading && <p className="field-help" role="status">Dynamic pages can take up to a minute. You can keep this window open while we try each method.</p>}
+        {loading && <p className="field-help" role="status">Some pages can take up to two minutes. Keep this window open while we try each method.</p>}
       </form>
     </>}
   </SlideOver>;

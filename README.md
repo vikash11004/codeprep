@@ -4,7 +4,7 @@ A local coding-practice workspace with a dark glass interface, public problem im
 
 ## Start
 
-Requirements: Node.js 22.12+ (Node 24 recommended), npm, and Python 3. On this Windows workspace, Chromium, GCC, and Java have already been installed under `server/.tools`.
+Requirements: Node.js 22.12+ (Node 24 recommended), npm, and Python 3.10+ with venv/pip. On this Windows workspace, Chromium, GCC, Java, and the Scrapling Python environment have already been installed under `server/.tools`.
 
 ```sh
 npm run setup
@@ -15,7 +15,7 @@ npm run dev
 
 Open http://127.0.0.1:5173. The API listens on 127.0.0.1:3001. `npm run build` followed by `npm start` serves the built app at http://127.0.0.1:3001.
 
-On macOS/Linux, install Python 3, g++, gcc, and JDK 21 with your system package manager. Set `CODEPREP_PYTHON_BIN`, `CODEPREP_CPP_BIN`, `CODEPREP_C_BIN`, `CODEPREP_JAVA_BIN`, and `CODEPREP_JAVAC_BIN` in `server/.env` if necessary. `npm run setup` installs Chromium and the JSON adapters on all platforms. Compiler availability is detected; unavailable languages are disabled with a reason.
+On macOS/Linux, install Python 3.10+ (including venv/pip), g++, gcc, and JDK 21 with your system package manager. Set `CODEPREP_PYTHON_BIN`, `CODEPREP_CPP_BIN`, `CODEPREP_C_BIN`, `CODEPREP_JAVA_BIN`, and `CODEPREP_JAVAC_BIN` in `server/.env` if necessary. `npm run setup` installs Chromium, the JSON adapters, and Scrapling in a project-local virtual environment on all platforms. Compiler availability is detected; unavailable languages are disabled with a reason.
 
 No MongoDB or AI key is required to import, edit, run, grade, save progress, or use the offline guides.
 
@@ -49,9 +49,11 @@ Compilation, runtime exceptions, process exits, timeouts, and excessive output a
 
 ## Importing
 
-The importer tries structured LeetCode data, static HTML/Next.js hydration (including GFG fields), and then Playwright Chromium for JavaScript-rendered pages. It also handles generic articles/main content, standard and sample Input/Output sections, and Codeforces-style sample blocks.
+The importer tries structured LeetCode data, static HTML/Next.js hydration (including GFG fields), **Scrapling browser-profile HTTP requests**, and then Playwright Chromium for JavaScript-rendered pages. Scrapling adds Chrome-style TLS/HTTP fingerprints for sites that reject the ordinary HTTP client; it only runs when the earlier paths cannot extract a complete statement. Successful imports display which path supplied the content. The shared parser handles generic articles/main content, standard and sample Input/Output sections, and Codeforces-style sample blocks.
 
-All network hops are checked for public HTTP(S) targets. Direct requests pin checked DNS addresses; redirects and browser requests are revalidated. Browser service workers and WebSockets are blocked. Imports have size, request-count, and concurrency limits. There is no AI parsing and no third-party reader service.
+Install or repair just this fallback with `npm run setup:scrapling`. It installs pinned Scrapling 0.5.1 and curl_cffi 0.17.0 under `server/.tools/scrapling-venv`; no extra Python browser download is required. Set `CODEPREP_SCRAPLING_ENABLED=false` to disable it, or `CODEPREP_SCRAPLING_PYTHON` to an absolute virtual-environment Python path. Missing/unavailable Scrapling continues to Playwright and the existing paste-statement recovery path. Its small curl-session adapter is version-specific; run the Python adapter tests before upgrading either dependency.
+
+All network hops are checked for public HTTP(S) targets. Direct and Scrapling requests pin checked DNS addresses; redirects and browser requests are revalidated. Scrapling disables automatic redirects and environment proxies, verifies TLS certificates, caps decompressed bodies at 3 MB, and has a 25-second fallback deadline (up to four redirects). Its child process receives no API credentials. Browser service workers and WebSockets are blocked. Imports have size, request-count, and concurrency limits. There is no AI parsing and no third-party reader service.
 
 372 existing library entries were refreshed from public source statements. Some premium, unavailable, or legacy entries have no public examples; these show a paste/add-tests path instead of fabricated test answers. When live LeetCode access fails, an exact bundled source-link match may be used and is visibly labeled as a bundled fallback.
 
@@ -73,15 +75,18 @@ Sessions, progress, and imported problems are written atomically to `server/data
 
 ```sh
 npm test          # parser, SSRF guards, source-example agreement, API gates,
-                  # all native languages, timeouts, browser rendering,
+                  # all native languages, timeouts, browser rendering, Scrapling fallbacks,
                   # and all 74 offline references against their full suites
 npm run lint
 npm run build
+npm run test:imports # optional live LeetCode/GFG/CSES checks, including forced Scrapling fallback
 # Start npm run dev before this command:
 npm run test:e2e   # desktop/mobile navigation, import preview, grading,
                   # language switching, drafts, consent, accessible dialog close
 ```
 
 E2E screenshots are saved in `test-results/`. The UI explanation response is mocked for repeatable E2E testing; server tests independently verify consent and offline fallback. Live source import checks were also performed against LeetCode, GeeksforGeeks, and CSES.
+
+Scrapling tests cover fallback order, blocked/challenge pages, private redirects, DNS rebinding, response limits, and the actual installed Python adapter with network calls mocked. The Python adapter test is skipped if Scrapling is not installed; run setup first to include it. The explicit live checks depend on network/source availability and also verify that CSES input/output instructions and sidebar links do not become sample tests.
 
 Maintenance: `node server/scripts/refresh-catalog.js --missing-only` refreshes missing public statements; omit the flag to refresh the whole catalog. This is a manual maintenance task, not something triggered on every page load.

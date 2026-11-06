@@ -1,22 +1,11 @@
-import { lookup } from 'node:dns/promises';
-import ipaddr from 'ipaddr.js';
+import { validateUrl } from './public-url.js';
+import { scraplingFetch } from './scrapling.js';
+export { publicAddress, validateUrl } from './public-url.js';
 import { Agent, fetch as request } from 'undici';
 import { load } from 'cheerio';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 
-export function publicAddress(address) {
-  try { const ip = ipaddr.process(address.replace(/^\[|\]$/g, '')); return ip.range() === 'unicast'; } catch { return false; }
-}
-export async function validateUrl(value, resolve = lookup) {
-  let url; try { url = new URL(value); } catch { throw new Error('Enter a valid public HTTP or HTTPS link.'); }
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || (url.port && !['80', '443'].includes(url.port))) throw new Error('Only public HTTP(S) links on standard ports are supported.');
-  const host = url.hostname.replace(/^\[|\]$/g, '');
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) throw new Error('Private network links are not allowed.');
-  const addresses = ipaddr.isValid(host) ? [{ address: host, family: ipaddr.parse(host).kind() === 'ipv6' ? 6 : 4 }] : await resolve(host, { all: true });
-  if (!addresses.length || addresses.some(x => !publicAddress(x.address))) throw new Error('Private or reserved network addresses are not allowed.');
-  return { url, addresses };
-}
 export async function safeFetch(value, options = {}, hops = 0) {
   if (hops > 4) throw new Error('The page redirected too many times.');
   const { url, addresses } = await validateUrl(value);
@@ -37,7 +26,7 @@ export async function safeFetch(value, options = {}, hops = 0) {
 
 export function htmlText(html) {
   const $ = load(html);
-  $('script, style, nav, footer, header, svg, button, form, aside').remove();
+  $('script, style, nav, footer, header, svg, button, form, aside, .sidebar, [role="navigation"]').remove();
   $('sup').each((_, el) => $(el).replaceWith(`^${$(el).text()}`));
   $('br').replaceWith('\n');
   $('p, div, section, article, h1, h2, h3, li, pre, tr').each((_, el) => { $(el).prepend('\n'); $(el).append('\n'); });
@@ -49,7 +38,11 @@ export function parseStatement(raw, titleHint = '') {
   const title = titleHint || lines[0]?.replace(/^(?:title\s*:\s*|\d+\.\s*)/i, '').slice(0, 150) || 'Imported problem';
   const constraints = text.match(/(?:^|\n)Constraints?\s*:?\s*\n?([\s\S]*?)(?=\n(?:Follow.up|Expected|Related|Topics|Company|Examples?|Input|Output|Explanation)\b|$)/i)?.[1]?.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 25) || [];
   const examples = [];
-  const normalized = text.replace(/^(Input|Output|Explanation)\s*$/gmi, '$1:').replace(/\b(Output|Explanation)\s*:/gi, '\n$1:').replace(/\bInput\s*:/gi, '\nInput:');
+  // Input/Output specifications are prose, not runnable samples. When an
+  // explicit examples section exists, only parse pairs inside that section.
+  const exampleStart = text.search(/(?:^|\n)(?:Examples?\s*\d*\s*:?[ \t]*(?:\n|$)|Sample\s+Input)/i);
+  const exampleText = exampleStart >= 0 ? text.slice(exampleStart) : text;
+  const normalized = exampleText.replace(/^(Input|Output|Explanation)\s*$/gmi, '$1:').replace(/\b(Output|Explanation)\s*:/gi, '\n$1:').replace(/\bInput\s*:/gi, '\nInput:');
   const pattern = /(?:^|\n)Input\s*:\s*([\s\S]*?)\nOutput\s*:\s*([\s\S]*?)(?=\n(?:Input\s*:|Examples?\s*\d*\s*:?|Constraints?\s*:?|Follow.up|Expected|Your Task|Note\s*:|Topics\s*:)|$)/gi;
   for (const m of normalized.matchAll(pattern)) {
     const [output, ...explanation] = m[2].split(/\nExplanation\s*:\s*/i);
@@ -61,7 +54,7 @@ export function parseStatement(raw, titleHint = '') {
     const sample = /(?:Sample\s+Input(?:\s*\d+)?|Input\s+Example)\s*:?\s*\n([\s\S]*?)\n(?:Sample\s+Output(?:\s*\d+)?|Output\s+Example)\s*:?\s*\n([\s\S]*?)(?=\n(?:Sample|Explanation|Note|Constraints)\b|$)/gi;
     for (const m of text.matchAll(sample)) examples.push({ input: m[1].trim(), output: m[2].trim(), explanation: '' });
   }
-  let description = text.split(/\n\s*(?:Examples?\s*\d*\s*:|Input\s*:|Constraints?\s*:|Sample\s+Input)/i)[0].trim();
+  let description = text.split(/\n\s*(?:Examples?\s*\d*\s*(?::|\n)|Input\s*:|Constraints?\s*:|Sample\s+Input)/i)[0].trim();
   if (description.startsWith(lines[0]) && lines[0]?.includes(title)) description = description.slice(lines[0].length).trim();
   const isValidProblem = description.length > 35 && (examples.length > 0 || /\b(given|return|find|calculate|compute|write|determine|implement|array|integer|string|input|output)\b/i.test(description)) && !/just a moment|verify you are human|access denied|captcha/i.test(title);
   return { title, description, constraints, examples, isValidProblem, difficulty: text.match(/\b(Easy|Medium|Hard)\b/)?.[1] || 'Imported', category: 'Imported', tags: [] };
@@ -70,7 +63,7 @@ export function extractPage(html) {
   const $ = load(html);
   const title = ($('h1').first().text() || $('meta[property="og:title"]').attr('content') || $('title').text()).split(/\s*[|–]\s*/)[0].replace(/ - (?:LeetCode|GeeksforGeeks).*$/i, '').trim();
   const candidates = [];
-  $('[data-track-load="description_content"], .problem-statement, .lang-en, .problems_problem_content__Xm_eO, [class*="problem_content"], [class*="problem-statement"], [class*="problemStatement"], article, main, [role="main"]').each((_, el) => candidates.push($(el).html()));
+  $('[data-track-load="description_content"], .problem-statement, .lang-en, .content > .md, .problems_problem_content__Xm_eO, [class*="problem_content"], [class*="problem-statement"], [class*="problemStatement"], article, main, [role="main"]').each((_, el) => candidates.push($(el).html()));
   // Hydrated GFG/Next.js pages can contain the statement before it is rendered.
   function walk(value, depth = 0) {
     if (depth > 15 || !value) return;
@@ -123,7 +116,7 @@ export async function renderPage(url, fetchPage = safeFetch) {
     return extractPage(await page.content());
   } finally { await context.close(); }
 }
-export async function importUrl(value) {
+export async function importUrl(value, { fetchPage = safeFetch, fetchProfile = scraplingFetch, render = renderPage } = {}) {
   const { url } = await validateUrl(value);
   const attempts = [];
   const slug = /(^|\.)leetcode\.com$/.test(url.hostname) && url.pathname.match(/\/problems\/([^/]+)/)?.[1];
@@ -131,18 +124,23 @@ export async function importUrl(value) {
   const judgeId = slug || ({ 'kadanes-algorithm-1587115620': 'maximum-subarray' })[gfgSlug];
   if (slug) {
     try {
-      const response = await safeFetch('https://leetcode.com/graphql/', { method: 'POST', headers: { 'Content-Type': 'application/json', Referer: 'https://leetcode.com/' }, body: JSON.stringify({ query: 'query questionData($titleSlug: String!) { question(titleSlug: $titleSlug) { title content difficulty } }', variables: { titleSlug: slug } }) });
+      const response = await fetchPage('https://leetcode.com/graphql/', { method: 'POST', headers: { 'Content-Type': 'application/json', Referer: 'https://leetcode.com/' }, body: JSON.stringify({ query: 'query questionData($titleSlug: String!) { question(titleSlug: $titleSlug) { title content difficulty } }', variables: { titleSlug: slug } }) });
       const q = JSON.parse(response.text)?.data?.question;
       if (q?.content) { const p = parseStatement(htmlText(q.content), q.title); if (p.isValidProblem) return { ...p, difficulty: q.difficulty, source: 'LeetCode structured data', sourceUrl: url.href, judgeId: slug }; }
     } catch { attempts.push('Structured data unavailable'); }
   }
   try {
-    const response = await safeFetch(url.href);
+    const response = await fetchPage(url.href);
     if (response.ok) { const p = extractPage(response.text); if (p?.examples.length) return { ...p, source: 'Public page', sourceUrl: url.href, ...(judgeId ? { judgeId } : {}) }; }
     attempts.push('Static page did not contain a complete statement');
   } catch (error) { attempts.push(error.message); }
   try {
-    const p = await renderPage(url.href);
+    const response = await fetchProfile(url.href);
+    if (response.ok) { const p = extractPage(response.text); if (p?.examples.length) return { ...p, source: 'Scrapling browser-profile request', sourceUrl: url.href, ...(judgeId ? { judgeId } : {}) }; }
+    attempts.push('Scrapling did not find a complete public statement');
+  } catch { attempts.push('Scrapling fallback unavailable'); }
+  try {
+    const p = await render(url.href);
     if (p?.isValidProblem) return { ...p, source: 'Browser-rendered page', sourceUrl: url.href, ...(judgeId ? { judgeId } : {}) };
   } catch (error) { attempts.push(error.message.includes('Executable') ? 'Browser is not installed; run npm run setup' : 'Browser rendering unavailable'); }
   throw new Error(`Could not read a public problem statement. The page may require sign-in, block automation, or use an unsupported format. Paste the statement to continue. ${attempts.join('. ')}`);
