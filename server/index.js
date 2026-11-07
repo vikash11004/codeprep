@@ -4,8 +4,25 @@ import { closeBrowser } from './lib/scraper.js';
 import express from 'express';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-const dist = fileURLToPath(new URL('../client/dist/', import.meta.url));
-if (existsSync(dist)) { app.use(express.static(dist)); app.get('/{*path}', (_req, res) => res.sendFile(`${dist}/index.html`)); }
+import { join } from 'node:path';
+
+const candidateDists = [
+  fileURLToPath(new URL('../client/dist', import.meta.url)),
+  fileURLToPath(new URL('./client/dist', import.meta.url)),
+  join(process.cwd(), '../client/dist'),
+  join(process.cwd(), 'client/dist'),
+  join(process.cwd(), 'dist')
+];
+const dist = candidateDists.find(d => existsSync(join(d, 'index.html')));
+
+if (dist) {
+  const indexHtml = join(dist, 'index.html');
+  console.log(`[CodePrep] Serving client UI from ${dist}`);
+  app.use(express.static(dist));
+  app.get('/{*path}', (_req, res) => res.sendFile(indexHtml));
+} else {
+  console.warn(`[CodePrep] Warning: Client dist not found in candidate paths:`, candidateDists);
+}
 const host = process.env.HOST || '0.0.0.0';
 const port = Number(process.env.PORT) || 3001;
 // Bind to 0.0.0.0 by default for cloud hosting (Render, Docker, etc.) while allowing HOST override

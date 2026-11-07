@@ -8,8 +8,12 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
-dist-ssr
+# dist (tracked so production build is available immediately on cloud deployments)
+!dist/
+!dist/**
+# dist (tracked so production build is available immediately on cloud deployments)
+!dist/
+!dist/**-ssr
 *.local
 
 # Editor directories and files
