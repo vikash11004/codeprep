@@ -8,10 +8,13 @@
     "setup:scrapling": "npm --prefix server run setup:scrapling",
     "dev": "node scripts/dev.mjs",
     "start": "npm --prefix server start",
-    "build": "npm --prefix client run build",
+    "build": "npm --prefix server install && node server/scripts/setup.js && npm --prefix client install && npm --prefix client run build",
     "test": "npm --prefix server test",
     "test:e2e": "npm --prefix server run test:e2e",
     "test:imports": "npm --prefix server run test:imports",
     "lint": "npm --prefix client run lint"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

@@ -13,13 +13,30 @@ import { offlineGuide } from './lib/guides.js';
 
 export const app = express();
 app.disable('x-powered-by');
-const origins = new Set((process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:3001,http://127.0.0.1:3001').split(','));
+const defaultOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:3001,http://127.0.0.1:3001').split(',').map(s => s.trim());
+if (process.env.RENDER_EXTERNAL_URL) defaultOrigins.push(process.env.RENDER_EXTERNAL_URL.trim());
+const origins = new Set(defaultOrigins.filter(Boolean));
+
+function isAllowedOrigin(origin, req) {
+  if (!origin) return true;
+  if (origins.has(origin)) return true;
+  try {
+    const originHost = new URL(origin).host;
+    const requestHost = req?.headers?.['x-forwarded-host'] || req?.headers?.host;
+    if (requestHost && originHost === requestHost) {
+      origins.add(origin);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
 app.use((req, res, next) => {
-  if (req.headers.origin && !origins.has(req.headers.origin)) return res.status(403).json({ error: 'Origin is not allowed.' });
+  if (req.headers.origin && !isAllowedOrigin(req.headers.origin, req)) return res.status(403).json({ error: 'Origin is not allowed.' });
   if (req.method === 'POST' && !req.is('application/json')) return res.status(415).json({ error: 'Send JSON content.' });
   next();
 });
-app.use(cors({ origin: [...origins] }));
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || origins.has(origin)) }));
 app.use(express.json({ limit: '1mb' }));
 app.get('/api/health', async (_req, res) => res.json({ status: 'ok', storage: 'local', aiAvailable: Boolean(process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.startsWith('your')), runtimes: await getRuntimes(), verifiedProblems: packIds.length }));
 app.use('/api', sessionMiddleware);
