@@ -13,7 +13,7 @@ npm run setup:compilers
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. The API listens on 127.0.0.1:3001. `npm run build` followed by `npm start` serves the built app at http://127.0.0.1:3001.
+Open http://127.0.0.1:5173. The API listens on 127.0.0.1:3001. `npm run build` followed by `npm start` serves the built app at http://127.0.0.1:3001. A live cloud deployment is also available at https://codeprep-a1zw.onrender.com/.
 
 On macOS/Linux, install Python 3.10+ (including venv/pip), g++, gcc, and JDK 21 with your system package manager. Set `CODEPREP_PYTHON_BIN`, `CODEPREP_CPP_BIN`, `CODEPREP_C_BIN`, `CODEPREP_JAVA_BIN`, and `CODEPREP_JAVAC_BIN` in `server/.env` if necessary. `npm run setup` installs Chromium, the JSON adapters, and Scrapling in a project-local virtual environment on all platforms. Compiler availability is detected; unavailable languages are disabled with a reason.
 
@@ -45,7 +45,7 @@ C uses a full stdin/stdout program. For structured function problems, each argum
 
 Compilation, runtime exceptions, process exits, timeouts, and excessive output are reported. There are two concurrent execution slots, an 8-second function-suite deadline, a 30-second compile deadline, and bounded output. Raw stdin programs have a 2-second per-case deadline and a 45-second overall deadline. Java and Node have heap limits; native/Python execution is not OS-memory-sandboxed.
 
-**This is a trusted, single-user local runner. Submitted programs execute with your OS permissions in temporary directories. It is deliberately bound to loopback and must not be exposed as an untrusted public execution service. Public hosting requires an isolated worker/container judge with filesystem, network, CPU, and memory restrictions.** Child processes receive a reduced environment without API keys, but that is not a security sandbox.
+**Submitted programs execute with your host environment permissions in temporary directories.** By default, the server binds to `0.0.0.0` for cloud and container compatibility (such as Render) and can be restricted with `HOST=127.0.0.1` for local-only loopback. This runner is designed for personal practice and trusted environments. Child processes receive a reduced environment without API keys, but that is not an OS security sandbox.
 
 ## Importing
 
@@ -70,6 +70,32 @@ All 74 verified problems have authored offline hints and JavaScript reference ex
 ## Persistence
 
 Sessions, progress, and imported problems are written atomically to `server/data/local/` (Git-ignored). Override the directory with `CODEPREP_DATA_DIR`. These files use local single-process storage, not a distributed database. Existing MongoDB history is not migrated automatically. Browser drafts and the session identifier are in localStorage; use the same browser profile to retain access to your progress.
+
+## Deployment (Render & Cloud)
+
+CodePrep can be deployed as a single unified service (Node.js backend serving both the API and the pre-bundled React frontend):
+
+- **Live URL**: [https://codeprep-a1zw.onrender.com/](https://codeprep-a1zw.onrender.com/)
+- **Runtime**: Node.js 24 (`.node-version` provided in repository root).
+- **Blueprint**: A [`render.yaml`](render.yaml) is included for 1-click deployment.
+
+### Render Configuration
+
+When deploying on Render as a Web Service:
+- **Build Command**: `npm run build`
+- **Start Command**: `npm start`
+- **Port & Host**: The server automatically listens on `0.0.0.0` and the port assigned by Render via `PORT` (e.g. `10000`).
+
+### Environment Variables
+| Variable | Description |
+|---|---|
+| `PORT` | Listening port (defaults to `3001`; auto-configured by cloud hosts). |
+| `HOST` | Bind host (defaults to `0.0.0.0`; set `HOST=127.0.0.1` for loopback-only). |
+| `CLIENT_ORIGIN` | Allowed CORS origins (comma-separated). `RENDER_EXTERNAL_URL` and same-origin requests are permitted automatically. |
+| `GROQ_API_KEY` | *(Optional)* API key for AI hints and solution walkthroughs. Offline hints and verified solutions work without a key. |
+| `LLM_MODEL` | *(Optional)* AI model override (defaults to `llama-3.3-70b-versatile`). |
+| `CODEPREP_DATA_DIR` | *(Optional)* Custom directory path for local JSON sessions. |
+| `CODEPREP_SCRAPLING_ENABLED` | *(Optional)* Set to `false` to disable Scrapling fallback scraping. |
 
 ## Verification
 
