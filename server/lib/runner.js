@@ -6,10 +6,11 @@ import { join, delimiter, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { compareOutput } from './test-packs.js';
+import { resolveRuntimePaths } from './runtime-config.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 let configured = {};
-try { configured = JSON.parse(readFileSync(join(root, '.tools/runtimes.json'), 'utf8')); } catch { /* Use system runtimes. */ }
+try { configured = resolveRuntimePaths(JSON.parse(readFileSync(join(root, '.tools/runtimes.json'), 'utf8')), root); } catch { /* Use system runtimes. */ }
 const binaries = { JavaScript: process.execPath, Python: process.env.CODEPREP_PYTHON_BIN || configured.python || 'python', 'C++': process.env.CODEPREP_CPP_BIN || configured.cpp || 'g++', C: process.env.CODEPREP_C_BIN || configured.c || 'gcc', Java: process.env.CODEPREP_JAVA_BIN || configured.java || 'java' };
 const javac = process.env.CODEPREP_JAVAC_BIN || configured.javac || 'javac';
 const assets = join(root, 'vendor');
@@ -55,7 +56,7 @@ export async function getRuntimes(refresh = false) {
       if (language === 'Java') { const c = await processRun(javac, ['-version']); if (c.code !== 0) throw new Error('JDK compiler missing'); await access(join(assets, 'gson.jar')); }
       if (language === 'C++') await access(join(assets, 'json.hpp'));
       return { language, available: true, version: (p.stdout || p.stderr).split('\n')[0].trim() };
-    } catch { return { language, available: false, reason: `Install ${language === 'Java' ? 'a JDK and Gson' : language === 'C++' ? 'g++ and the JSON header' : binaries[language]} with npm run setup, or configure its binary path.` }; }
+    } catch (error) { return { language, available: false, reason: `${language} runtime check failed (${error.code || error.message}). Run npm run setup:compilers and npm run verify:compilers on the backend, then restart it.` }; }
   }));
   return capabilities;
 }

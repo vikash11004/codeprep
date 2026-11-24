@@ -6,12 +6,14 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "build": "node scripts/setup.js && npm --prefix ../client install && npm --prefix ../client run build",
+    "build": "node scripts/setup.js --compilers && node scripts/verify-compilers.js && npm --prefix ../client install && npm --prefix ../client run build",
+    "prestart": "node scripts/setup.js --compilers && node scripts/verify-compilers.js",
     "dev": "node --watch index.js",
     "test": "node --test tests/*.test.js",
     "setup": "node scripts/setup.js && node scripts/install-browser.js && node scripts/install-scrapling.js",
     "setup:scrapling": "node scripts/install-scrapling.js",
     "setup:compilers": "node scripts/setup.js --compilers",
+    "verify:compilers": "node scripts/verify-compilers.js",
     "test:e2e": "node tests/e2e.js",
     "test:imports": "node tests/live-imports.js"
   },
