@@ -65,6 +65,16 @@ function nativeType(type, language) {
   return { string: language === 'Java' ? 'String' : 'std::string', bool: language === 'Java' ? 'boolean' : 'bool', int: 'int', double: 'double', json: language === 'Java' ? 'com.google.gson.JsonElement' : 'nlohmann::json' }[type] || 'int';
 }
 export function starterCode(contract, language) {
+  const starter = legacyStarterCode(contract, language);
+  if (contract.mode !== 'function' || language === 'C') return starter;
+  const method = contract.methodName || 'solution';
+  if (language === 'Python') {
+    return `from typing import List, Optional\n\nclass Solution:\n    def ${method}(self${contract.params.length ? ', ' : ''}${contract.params.map(p => p.name).join(', ')}):\n        pass\n`;
+  }
+  if (language === 'JavaScript') return `var ${method} = function(${contract.params.map(p => p.name).join(', ')}) {\n    // Return your answer.\n};\n`;
+  return starter.replace(/\bsolution\(/g, `${method}(`);
+}
+function legacyStarterCode(contract, language) {
   const params = contract.params || [];
   if (contract.mode === 'stdin' || language === 'C') {
     const note = 'Read one test from standard input; print only the answer. See the I/O contract for exact input.';
@@ -79,6 +89,10 @@ export function starterCode(contract, language) {
   return `#include <bits/stdc++.h>\nusing namespace std;\nclass Solution {\npublic:\n    ${ret} solution(${typed}) {\n        // Your approach here\n        throw runtime_error("Implement solution");\n    }\n};\n`;
 }
 async function prepare(dir, code, language, contract, marker, stdinMode) {
+  const method = /^[A-Za-z_][A-Za-z0-9_]*$/.test(contract.methodName || '') ? contract.methodName : 'solution';
+  const entry = method !== 'solution' && new RegExp('\\b' + method + '\\s*\\(').test(code) ? method : 'solution';
+  if (!stdinMode && language === 'JavaScript' && method !== 'solution') code += `\nvar solution; if (typeof ${method} === 'function') solution = ${method};`;
+  if (!stdinMode && language === 'Python') code = 'from typing import *\n' + code + `\nif 'Solution' in globals():\n    def solution(*args):\n        instance = Solution()\n        return getattr(instance, '${method}')(*args)\n`;
   if (language === 'JavaScript') {
     await writeFile(join(dir, 'solution.cjs'), code + (stdinMode ? '' : `\n;const __fs = require('node:fs');\n(async()=>{const cases=JSON.parse(__fs.readFileSync(0,'utf8'));for(const args of cases){try{let value=await solution(...args);process.stdout.write(${JSON.stringify(marker)}+JSON.stringify({value:value===undefined?null:value})+'\\n');}catch(e){process.stdout.write(${JSON.stringify(marker)}+JSON.stringify({error:String(e.message)})+'\\n');}}})();`));
     return [binaries[language], ['--max-old-space-size=256', join(dir, 'solution.cjs')]];
@@ -92,7 +106,7 @@ async function prepare(dir, code, language, contract, marker, stdinMode) {
     if (!stdinMode) {
       await writeFile(join(dir, 'json.hpp'), await readFile(join(assets, 'json.hpp')));
       const declarations = contract.params.map((p, i) => `auto a${i} = args.at(${i}).get<${nativeType(p.type, 'C++')}>();`).join('\n');
-      source = `#include <iostream>\n#include "json.hpp"\n${code}\nint main(){nlohmann::json cases; std::cin>>cases; for(auto& args:cases){try{${declarations}\nauto value=Solution().solution(${contract.params.map((_, i) => `a${i}`).join(',')});std::cout<<${JSON.stringify(marker)}<<nlohmann::json({{"value",value}}).dump()<<std::endl;}catch(const std::exception& e){std::cout<<${JSON.stringify(marker)}<<nlohmann::json({{"error",e.what()}}).dump()<<std::endl;}}}`;
+      source = `#include <iostream>\n#include "json.hpp"\n${code}\nint main(){nlohmann::json cases; std::cin>>cases; for(auto& args:cases){try{${declarations}\nauto value=Solution().${entry}(${contract.params.map((_, i) => `a${i}`).join(',')});std::cout<<${JSON.stringify(marker)}<<nlohmann::json({{"value",value}}).dump()<<std::endl;}catch(const std::exception& e){std::cout<<${JSON.stringify(marker)}<<nlohmann::json({{"error",e.what()}}).dump()<<std::endl;}}}`;
     }
     const file = join(dir, language === 'C' ? 'main.c' : 'main.cpp'); const exe = join(dir, process.platform === 'win32' ? 'main.exe' : 'main');
     await writeFile(file, source);
@@ -102,7 +116,7 @@ async function prepare(dir, code, language, contract, marker, stdinMode) {
   }
   await writeFile(join(dir, 'gson.jar'), await readFile(join(assets, 'gson.jar')));
   let source = code;
-  if (!stdinMode) source += `\nclass Main {public static void main(String[] ignored) throws Exception {com.google.gson.Gson gson=new com.google.gson.GsonBuilder().serializeNulls().create(); com.google.gson.JsonArray cases=com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(System.in)).getAsJsonArray(); for(com.google.gson.JsonElement element:cases){try{com.google.gson.JsonArray args=element.getAsJsonArray(); Object value=new Solution().solution(${contract.params.map((p, i) => `gson.fromJson(args.get(${i}),${nativeType(p.type, 'Java')}.class)`).join(',')}); java.util.Map<String,Object> out=new java.util.HashMap<>();out.put("value",value); System.out.println(${JSON.stringify(marker)}+gson.toJson(out));}catch(Throwable e){System.out.println(${JSON.stringify(marker)}+gson.toJson(java.util.Map.of("error",e.toString())));}}}}`;
+  if (!stdinMode) source += `\nclass Main {public static void main(String[] ignored) throws Exception {com.google.gson.Gson gson=new com.google.gson.GsonBuilder().serializeNulls().create(); com.google.gson.JsonArray cases=com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(System.in)).getAsJsonArray(); for(com.google.gson.JsonElement element:cases){try{com.google.gson.JsonArray args=element.getAsJsonArray(); Object value=new Solution().${entry}(${contract.params.map((p, i) => `gson.fromJson(args.get(${i}),${nativeType(p.type, 'Java')}.class)`).join(',')}); java.util.Map<String,Object> out=new java.util.HashMap<>();out.put("value",value); System.out.println(${JSON.stringify(marker)}+gson.toJson(out));}catch(Throwable e){System.out.println(${JSON.stringify(marker)}+gson.toJson(java.util.Map.of("error",e.toString())));}}}}`;
   await writeFile(join(dir, 'Main.java'), source);
   const compile = await processRun(javac, ['-encoding', 'UTF-8', '-cp', join(dir, 'gson.jar'), join(dir, 'Main.java')], { cwd: dir, timeout: 120000 });
   if (compile.code) throw new Error(`Compilation failed:\n${compile.stderr.slice(0, 12000)}`);

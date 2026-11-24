@@ -1,5 +1,6 @@
 import { formatInput, parseArgs, parseValue, parameterNames, typeOf, mergeTypes } from './input.js';
 import { catalog } from './problems.js';
+import { leetcodeMethods } from './leetcode-methods.js';
 
 function rng(seed = 0xC0DE) { return (min, max) => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return min + Math.floor(seed / 4294967296 * (max - min + 1)); }; }
 const sorted = a => [...a].sort((a, b) => a - b);
@@ -108,7 +109,7 @@ export function getSuite(problem) {
     for (let i = 0; values.size < 256 && i < 2500; i++) add(p.generate(r));
     const testCases = [...values.values()].map((args, i) => ({ args, expected: p.oracle(structuredClone(args[0]), ...structuredClone(args.slice(1))), input: formatInput(p.params.map(x => x.name), args), description: i < p.edges.length ? 'Boundary / regression' : 'Deterministic generated case', isEdgeCase: i < p.edges.length }));
     for (const t of testCases) t.expectedOutput = JSON.stringify(t.expected);
-    const suite = { testCases, coverage: 'verified', judgeId: p.id, compare: p.compare, contract: { mode: 'function', params: p.params, returns: p.returns }, note: `${testCases.length} distinct cases with reference-code answers. Includes regression cases and seeded inputs; not the source site's private judge.` };
+    const suite = { testCases, coverage: 'verified', judgeId: p.id, compare: p.compare, contract: { mode: 'function', methodName: leetcodeMethods[p.id] || 'solution', params: p.params, returns: p.returns }, note: `${testCases.length} distinct cases with reference-code answers. Includes regression cases and seeded inputs; not the source site's private judge.` };
     cache.set(p.id, suite); return suite;
   }
   const examples = (problem.examples || []).filter(ex => !/^Example (?:Input|Output)$/i.test(ex.input?.trim()) && !/^Example (?:Input|Output)$/i.test(ex.output?.trim()));
