@@ -1,0 +1,23 @@
+#include <bits/stdc++.h>
+#include "json.hpp"
+using namespace std;
+using nlohmann::json;
+struct ListNode {int val;ListNode* next;ListNode(int v=0,ListNode* n=nullptr):val(v),next(n){}};
+struct TreeNode {int val;TreeNode *left,*right;TreeNode(int v=0,TreeNode* l=nullptr,TreeNode* r=nullptr):val(v),left(l),right(r){}};
+template<class T> struct Codec {static T read(const json& j){return j.get<T>();}};
+template<> struct Codec<char>{static char read(const json& j){auto s=j.get<string>();if(s.size()!=1)throw runtime_error("Expected a character");return s[0];}};
+template<class T> struct Codec<vector<T>>{static vector<T> read(const json& j){vector<T> out;for(auto& v:j)out.push_back(Codec<T>::read(v));return out;}};
+template<> struct Codec<ListNode*>{static ListNode* read(const json& j){ListNode dummy;auto tail=&dummy;if(j.is_null())return nullptr;for(auto& v:j){tail->next=new ListNode(v.get<int>());tail=tail->next;}return dummy.next;}};
+template<> struct Codec<TreeNode*>{static TreeNode* read(const json& j){if(j.is_null()||j.empty()||j[0].is_null())return nullptr;auto root=new TreeNode(j[0].get<int>());queue<TreeNode*> q;q.push(root);size_t i=1;while(!q.empty()&&i<j.size()){auto n=q.front();q.pop();for(auto ptr:{&n->left,&n->right}){if(i<j.size()&&!j[i].is_null()){*ptr=new TreeNode(j[i].get<int>());q.push(*ptr);}i++;}}return root;}};
+template<class T> T decode(const json& j){return Codec<T>::read(j);}
+TreeNode* findNode(TreeNode* root,int value){if(!root||root->val==value)return root;auto left=findNode(root->left,value);return left?left:findNode(root->right,value);}
+template<class T> json encode(const T& value){return json(value);}
+json encode(char value){return string(1,value);}
+json encode(ListNode* n){json out=json::array();unordered_set<ListNode*> seen;while(n){if(!seen.insert(n).second||seen.size()>100000)throw runtime_error("Cyclic or oversized list output");out.push_back(n->val);n=n->next;}return out;}
+json encode(TreeNode* n){json out=json::array();queue<TreeNode*> q;q.push(n);unordered_set<TreeNode*> seen;while(!q.empty()){auto x=q.front();q.pop();if(!x){out.push_back(nullptr);continue;}if(!seen.insert(x).second||seen.size()>100000)throw runtime_error("Cyclic or oversized tree output");out.push_back(x->val);q.push(x->left);q.push(x->right);}while(!out.empty()&&out.back().is_null())out.erase(out.size()-1);return out;}
+template<class T> json encode(const vector<T>& value){json out=json::array();for(const auto& v:value)out.push_back(encode(v));return out;}
+/*USER_CODE*/
+int main(){json cases;cin>>cases;for(auto& args:cases){try{
+/*INVOKE*/
+cout<</*MARKER*/<<json({{"value",value}}).dump()<<endl;
+}catch(const exception& error){cout<</*MARKER*/<<json({{"error",error.what()}}).dump()<<endl;}}}

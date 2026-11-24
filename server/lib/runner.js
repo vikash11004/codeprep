@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { compareOutput } from './test-packs.js';
 import { resolveRuntimePaths } from './runtime-config.js';
+import { sourceStarter } from './leetcode-contract.js';
+import { sourceHarness, usesSourceAdapter } from './leetcode-harness.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 let configured = {};
@@ -65,6 +67,7 @@ function nativeType(type, language) {
   return { string: language === 'Java' ? 'String' : 'std::string', bool: language === 'Java' ? 'boolean' : 'bool', int: 'int', double: 'double', json: language === 'Java' ? 'com.google.gson.JsonElement' : 'nlohmann::json' }[type] || 'int';
 }
 export function starterCode(contract, language) {
+  if (language !== 'C' && contract.leetcode && sourceStarter(contract, language)) return sourceStarter(contract, language);
   const starter = legacyStarterCode(contract, language);
   if (contract.mode !== 'function' || language === 'C') return starter;
   const method = contract.methodName || 'solution';
@@ -89,9 +92,13 @@ function legacyStarterCode(contract, language) {
   return `#include <bits/stdc++.h>\nusing namespace std;\nclass Solution {\npublic:\n    ${ret} solution(${typed}) {\n        // Your approach here\n        throw runtime_error("Implement solution");\n    }\n};\n`;
 }
 async function prepare(dir, code, language, contract, marker, stdinMode) {
+  if (!stdinMode && usesSourceAdapter(code, language, contract)) {
+    if(language === 'C++') await writeFile(join(dir,'json.hpp'),await readFile(join(assets,'json.hpp')));
+    return prepare(dir, sourceHarness(code,language,contract,marker),language,contract,marker,true);
+  }
   const method = /^[A-Za-z_][A-Za-z0-9_]*$/.test(contract.methodName || '') ? contract.methodName : 'solution';
   const entry = method !== 'solution' && new RegExp('\\b' + method + '\\s*\\(').test(code) ? method : 'solution';
-  if (!stdinMode && language === 'JavaScript' && method !== 'solution') code += `\nvar solution; if (typeof ${method} === 'function') solution = ${method};`;
+  if (!stdinMode && language === 'JavaScript' && method !== 'solution' && !/\b(?:function|const|let|var)\s+solution\b/.test(code)) code += `\nvar solution; if (typeof ${method} === 'function') solution = ${method};`;
   if (!stdinMode && language === 'Python') code = 'from typing import *\n' + code + `\nif 'Solution' in globals():\n    def solution(*args):\n        instance = Solution()\n        return getattr(instance, '${method}')(*args)\n`;
   if (language === 'JavaScript') {
     await writeFile(join(dir, 'solution.cjs'), code + (stdinMode ? '' : `\n;const __fs = require('node:fs');\n(async()=>{const cases=JSON.parse(__fs.readFileSync(0,'utf8'));for(const args of cases){try{let value=await solution(...args);process.stdout.write(${JSON.stringify(marker)}+JSON.stringify({value:value===undefined?null:value})+'\\n');}catch(e){process.stdout.write(${JSON.stringify(marker)}+JSON.stringify({error:String(e.message)})+'\\n');}}})();`));

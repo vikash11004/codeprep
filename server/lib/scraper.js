@@ -124,9 +124,9 @@ export async function importUrl(value, { fetchPage = safeFetch, fetchProfile = s
   const judgeId = slug || ({ 'kadanes-algorithm-1587115620': 'maximum-subarray' })[gfgSlug];
   if (slug) {
     try {
-      const response = await fetchPage('https://leetcode.com/graphql/', { method: 'POST', headers: { 'Content-Type': 'application/json', Referer: 'https://leetcode.com/' }, body: JSON.stringify({ query: 'query questionData($titleSlug: String!) { question(titleSlug: $titleSlug) { title content difficulty } }', variables: { titleSlug: slug } }) });
+      const response = await fetchPage('https://leetcode.com/graphql/', { method: 'POST', headers: { 'Content-Type': 'application/json', Referer: 'https://leetcode.com/' }, body: JSON.stringify({ query: 'query questionData($titleSlug: String!) { question(titleSlug: $titleSlug) { title content difficulty metaData codeSnippets { langSlug code } } }', variables: { titleSlug: slug } }) });
       const q = JSON.parse(response.text)?.data?.question;
-      if (q?.content) { const p = parseStatement(htmlText(q.content), q.title); if (p.isValidProblem) return { ...p, difficulty: q.difficulty, source: 'LeetCode structured data', sourceUrl: url.href, judgeId: slug }; }
+      if (q?.content) { const p = parseStatement(htmlText(q.content), q.title); if (p.isValidProblem) return { ...p, difficulty: q.difficulty, ...(q.metaData ? { leetcode: { metadata: JSON.parse(q.metaData), snippets: q.codeSnippets || [] } } : {}), source: 'LeetCode structured data', sourceUrl: url.href, judgeId: slug }; }
     } catch { attempts.push('Structured data unavailable'); }
   }
   try {

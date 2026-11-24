@@ -1,0 +1,41 @@
+import java.util.*;
+import java.lang.reflect.*;
+import com.google.gson.*;
+/*USER_CODE*/
+class ListNode {int val;ListNode next;ListNode(){} ListNode(int v){val=v;} ListNode(int v,ListNode n){val=v;next=n;}}
+class TreeNode {int val;TreeNode left,right;TreeNode(){} TreeNode(int v){val=v;} TreeNode(int v,TreeNode l,TreeNode r){val=v;left=l;right=r;}}
+class Main {
+static Gson gson=new GsonBuilder().serializeNulls().create();
+static JsonObject config=JsonParser.parseString(/*CONFIG*/).getAsJsonObject();
+static Object decode(JsonElement j,Type type){
+ if(type==ListNode.class){ListNode dummy=new ListNode(),tail=dummy;if(j.isJsonNull())return null;for(JsonElement v:j.getAsJsonArray()){tail.next=new ListNode(v.getAsInt());tail=tail.next;}return dummy.next;}
+ if(type==TreeNode.class){if(j.isJsonNull()||j.getAsJsonArray().isEmpty()||j.getAsJsonArray().get(0).isJsonNull())return null;JsonArray a=j.getAsJsonArray();TreeNode root=new TreeNode(a.get(0).getAsInt());Queue<TreeNode> q=new LinkedList<>();q.add(root);int i=1;while(!q.isEmpty()&&i<a.size()){TreeNode n=q.remove();if(!a.get(i).isJsonNull()){n.left=new TreeNode(a.get(i).getAsInt());q.add(n.left);}i++;if(i<a.size()&&!a.get(i).isJsonNull()){n.right=new TreeNode(a.get(i).getAsInt());q.add(n.right);}i++;}return root;}
+ if(type instanceof Class && ((Class<?>)type).isArray()){Class<?> element=((Class<?>)type).getComponentType();JsonArray a=j.getAsJsonArray();Object out=Array.newInstance(element,a.size());for(int i=0;i<a.size();i++)Array.set(out,i,decode(a.get(i),element));return out;}
+ return gson.fromJson(j,type);
+}
+static JsonElement encode(Object value){
+ if(value instanceof ListNode){JsonArray out=new JsonArray();Set<Object> seen=Collections.newSetFromMap(new IdentityHashMap<>());for(ListNode n=(ListNode)value;n!=null;n=n.next){if(!seen.add(n)||seen.size()>100000)throw new IllegalArgumentException("Cyclic or oversized list output");out.add(n.val);}return out;}
+ if(value instanceof TreeNode){JsonArray out=new JsonArray();Queue<TreeNode> q=new LinkedList<>();q.add((TreeNode)value);Set<Object> seen=Collections.newSetFromMap(new IdentityHashMap<>());while(!q.isEmpty()){TreeNode n=q.remove();if(n==null){out.add(JsonNull.INSTANCE);continue;}if(!seen.add(n)||seen.size()>100000)throw new IllegalArgumentException("Cyclic or oversized tree output");out.add(n.val);q.add(n.left);q.add(n.right);}while(!out.isEmpty()&&out.get(out.size()-1).isJsonNull())out.remove(out.size()-1);return out;}
+ if(value!=null&&value.getClass().isArray()){JsonArray out=new JsonArray();for(int i=0;i<Array.getLength(value);i++)out.add(encode(Array.get(value,i)));return out;}
+ if(value instanceof Iterable){JsonArray out=new JsonArray();for(Object x:(Iterable<?>)value)out.add(encode(x));return out;}
+ return gson.toJsonTree(value);
+}
+static Object[] arguments(JsonArray a,Type[] types){if(a.size()!=types.length)throw new IllegalArgumentException("Argument count mismatch");Object[] out=new Object[types.length];for(int i=0;i<types.length;i++)out[i]=decode(a.get(i),types[i]);return out;}
+static String style(){return config.has("adapterStyle")?config.get("adapterStyle").getAsString():"";}
+static TreeNode find(TreeNode n,int v){if(n==null||n.val==v)return n;TreeNode left=find(n.left,v);return left!=null?left:find(n.right,v);}
+static Object[] sourceArguments(JsonArray raw,Type[] types){
+ if(style().equals("ancestor")){TreeNode root=(TreeNode)decode(raw.get(0),TreeNode.class);return new Object[]{root,find(root,raw.get(1).getAsInt()),find(root,raw.get(2).getAsInt())};}
+ if(style().equals("cycle")){ListNode head=(ListNode)decode(raw.get(0),ListNode.class);ArrayList<ListNode> nodes=new ArrayList<>();for(ListNode n=head;n!=null;n=n.next)nodes.add(n);int pos=raw.get(1).getAsInt();if(pos>=0)nodes.get(nodes.size()-1).next=nodes.get(pos);return new Object[]{head};}
+ return arguments(raw,types);
+}
+static Method method(Class<?> cls,String name,int count){for(Method m:cls.getDeclaredMethods())if(m.getName().equals(name)&&m.getParameterCount()==count){m.setAccessible(true);return m;}throw new IllegalArgumentException("Missing method: "+name);}
+static JsonElement result(Object value,String type){return value==null&&(type.equals("ListNode")||type.equals("TreeNode"))?new JsonArray():encode(value);}
+public static void main(String[] ignored){for(JsonElement test:JsonParser.parseReader(new java.io.InputStreamReader(System.in)).getAsJsonArray()){try{
+ JsonArray raw=test.getAsJsonArray();JsonElement value;Class<?> cls=/*CLASS*/.class;
+ if(config.has("systemdesign")&&config.get("systemdesign").getAsBoolean()){
+ JsonArray ops=raw.get(0).getAsJsonArray(),params=raw.get(1).getAsJsonArray();if(ops.size()!=params.size()||!ops.get(0).getAsString().equals(config.get("classname").getAsString()))throw new IllegalArgumentException("Invalid design operation sequence");Constructor<?> ctor=null;for(Constructor<?> c:cls.getDeclaredConstructors())if(c.getParameterCount()==params.get(0).getAsJsonArray().size()){ctor=c;break;}if(ctor==null)throw new IllegalArgumentException("Missing constructor");ctor.setAccessible(true);Object instance=ctor.newInstance(arguments(params.get(0).getAsJsonArray(),ctor.getGenericParameterTypes()));JsonArray out=new JsonArray();out.add(JsonNull.INSTANCE);
+ for(int i=1;i<ops.size();i++){String name=ops.get(i).getAsString();JsonObject spec=null;for(JsonElement e:config.getAsJsonArray("methods"))if(e.getAsJsonObject().get("name").getAsString().equals(name))spec=e.getAsJsonObject();if(spec==null)throw new IllegalArgumentException("Unknown design operation");Method m=method(cls,name,params.get(i).getAsJsonArray().size());out.add(result(m.invoke(instance,arguments(params.get(i).getAsJsonArray(),m.getGenericParameterTypes())),spec.getAsJsonObject("return").get("type").getAsString()));}value=out;
+ }else{Method m=method(cls,config.get("name").getAsString(),style().equals("cycle")?1:raw.size());Constructor<?> ctor=cls.getDeclaredConstructor();ctor.setAccessible(true);Object[] args=sourceArguments(raw,m.getGenericParameterTypes());Object ret=m.invoke(ctor.newInstance(),args);if(config.has("output")){JsonObject output=config.getAsJsonObject("output");value=encode(args[output.get("paramindex").getAsInt()]);if(output.has("size")&&output.get("size").getAsString().equals("ret")){if(((Number)ret).intValue()<0||((Number)ret).intValue()>value.getAsJsonArray().size())throw new IllegalArgumentException("Invalid returned prefix length");JsonArray prefix=new JsonArray();for(int i=0;i<((Number)ret).intValue();i++)prefix.add(value.getAsJsonArray().get(i));value=prefix;}}else value=style().equals("ancestor")?encode(ret==null?null:((TreeNode)ret).val):result(ret,config.getAsJsonObject("return").get("type").getAsString());}
+ JsonObject out=new JsonObject();out.add("value",value);System.out.println(config.get("marker").getAsString()+gson.toJson(out));
+ }catch(Throwable e){JsonObject out=new JsonObject();out.addProperty("error",String.valueOf(e instanceof InvocationTargetException?e.getCause():e));System.out.println(config.get("marker").getAsString()+gson.toJson(out));}}}
+}

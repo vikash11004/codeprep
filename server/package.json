@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
+    "postinstall": "node scripts/setup.js --compilers",
     "build": "node scripts/setup.js --compilers && node scripts/verify-compilers.js && npm --prefix ../client install && npm --prefix ../client run build",
     "prestart": "node scripts/setup.js --compilers && node scripts/verify-compilers.js",
     "dev": "node --watch index.js",

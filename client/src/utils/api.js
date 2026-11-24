@@ -27,7 +27,7 @@ async function apiRequest(endpoint, options = {}) {
     config.body = JSON.stringify(config.body);
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, { ...config, signal: AbortSignal.timeout(120000) });
+  const response = await fetch(`${API_BASE}${endpoint}`, { ...config, signal: AbortSignal.timeout(endpoint === '/run' ? 180000 : 120000) });
   let data;
   try { data = await response.json(); } catch { throw new Error('The API is unavailable. Start the backend with npm run dev and retry.'); }
 

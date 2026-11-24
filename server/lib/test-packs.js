@@ -1,6 +1,7 @@
 import { formatInput, parseArgs, parseValue, parameterNames, typeOf, mergeTypes } from './input.js';
 import { catalog } from './problems.js';
 import { leetcodeMethods } from './leetcode-methods.js';
+import { sourceContract } from './leetcode-contract.js';
 
 function rng(seed = 0xC0DE) { return (min, max) => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return min + Math.floor(seed / 4294967296 * (max - min + 1)); }; }
 const sorted = a => [...a].sort((a, b) => a - b);
@@ -94,6 +95,7 @@ export function getPack(problem) { return packs.get(problem.judgeId || problem.i
 export const packIds = [...packs.keys()];
 const cache = new Map();
 export function getSuite(problem) {
+  const source = sourceContract(problem);
   const p = getPack(problem);
   if (p) {
     if (cache.has(p.id)) return cache.get(p.id);
@@ -110,17 +112,25 @@ export function getSuite(problem) {
     const testCases = [...values.values()].map((args, i) => ({ args, expected: p.oracle(structuredClone(args[0]), ...structuredClone(args.slice(1))), input: formatInput(p.params.map(x => x.name), args), description: i < p.edges.length ? 'Boundary / regression' : 'Deterministic generated case', isEdgeCase: i < p.edges.length }));
     for (const t of testCases) t.expectedOutput = JSON.stringify(t.expected);
     const suite = { testCases, coverage: 'verified', judgeId: p.id, compare: p.compare, contract: { mode: 'function', methodName: leetcodeMethods[p.id] || 'solution', params: p.params, returns: p.returns }, note: `${testCases.length} distinct cases with reference-code answers. Includes regression cases and seeded inputs; not the source site's private judge.` };
+    if(source) { suite.contract.leetcode=source.leetcode; suite.contract.snippets=source.snippets; suite.contract.methodName=source.methodName; }
     cache.set(p.id, suite); return suite;
   }
   const examples = (problem.examples || []).filter(ex => !/^Example (?:Input|Output)$/i.test(ex.input?.trim()) && !/^Example (?:Input|Output)$/i.test(ex.output?.trim()));
   let typed = true;
   const testCases = examples.map(ex => {
-    try { return { args: parseArgs(ex.input), expected: parseValue(ex.output), input: ex.input, expectedOutput: ex.output, description: 'Published example' }; }
+    try {
+      let output=ex.output;
+      if(source?.leetcode.output?.size === 'ret') {
+        const match=output.match(/^\s*(\d+)\s*,\s*\w+\s*=\s*(\[[\s\S]*\])/);
+        if(match) output=JSON.stringify(parseValue(match[2].replace(/\b_\b/g,'null')).slice(0,Number(match[1])));
+      }
+      return { args: parseArgs(ex.input), expected: parseValue(output), input: ex.input, expectedOutput: output, description: 'Published example' };
+    }
     catch { typed = false; return { input: ex.input, expectedOutput: ex.output, description: 'Published example' }; }
   });
   if (typed && testCases.some(t => t.args.length !== testCases[0].args.length)) typed = false;
   const params = typed && testCases.length ? parameterNames(testCases[0].input).map((name, i) => ({ name, type: testCases.map(t => typeOf(t.args[i])).reduce(mergeTypes) })) : [];
-  return { testCases, coverage: 'samples', compare: 'exact', contract: { mode: typed && testCases.length ? 'function' : 'stdin', params, returns: typed && testCases.length ? testCases.map(t => typeOf(t.expected)).reduce(mergeTypes) : 'string' }, note: 'Published examples only. Passing samples is not full acceptance. Add trusted input/output cases or verify with the source judge.' };
+  return { testCases, coverage: 'samples', compare: 'exact', contract: source && typed && testCases.length ? source : { mode: typed && testCases.length ? 'function' : 'stdin', params, returns: typed && testCases.length ? testCases.map(t => typeOf(t.expected)).reduce(mergeTypes) : 'string' }, note: 'Published examples only. Passing samples is not full acceptance. ' + (source && typed ? 'Source-style adapters support JavaScript, Python, C++ and Java; C uses stdin/stdout.' : 'No source-compatible adapter is available for this input format; use the displayed generic contract. Source solutions may need conversion.') };
 }
 
 function canonical(v) { if (Array.isArray(v)) return v.map(canonical); if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map(k => [k, canonical(v[k])])); return v; }
