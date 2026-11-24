@@ -96,7 +96,7 @@ async function prepare(dir, code, language, contract, marker, stdinMode) {
     }
     const file = join(dir, language === 'C' ? 'main.c' : 'main.cpp'); const exe = join(dir, process.platform === 'win32' ? 'main.exe' : 'main');
     await writeFile(file, source);
-    const compile = await processRun(binaries[language], [file, language === 'C' ? '-std=c17' : '-std=c++17', '-O2', '-o', exe], { cwd: dir, timeout: 30000 });
+    const compile = await processRun(binaries[language], [file, language === 'C' ? '-std=c17' : '-std=c++17', '-O2', '-o', exe], { cwd: dir, timeout: 120000 });
     if (compile.code) throw new Error(`Compilation failed:\n${compile.stderr.slice(0, 12000)}`);
     return [exe, []];
   }
@@ -104,7 +104,7 @@ async function prepare(dir, code, language, contract, marker, stdinMode) {
   let source = code;
   if (!stdinMode) source += `\nclass Main {public static void main(String[] ignored) throws Exception {com.google.gson.Gson gson=new com.google.gson.GsonBuilder().serializeNulls().create(); com.google.gson.JsonArray cases=com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(System.in)).getAsJsonArray(); for(com.google.gson.JsonElement element:cases){try{com.google.gson.JsonArray args=element.getAsJsonArray(); Object value=new Solution().solution(${contract.params.map((p, i) => `gson.fromJson(args.get(${i}),${nativeType(p.type, 'Java')}.class)`).join(',')}); java.util.Map<String,Object> out=new java.util.HashMap<>();out.put("value",value); System.out.println(${JSON.stringify(marker)}+gson.toJson(out));}catch(Throwable e){System.out.println(${JSON.stringify(marker)}+gson.toJson(java.util.Map.of("error",e.toString())));}}}}`;
   await writeFile(join(dir, 'Main.java'), source);
-  const compile = await processRun(javac, ['-encoding', 'UTF-8', '-cp', join(dir, 'gson.jar'), join(dir, 'Main.java')], { cwd: dir, timeout: 30000 });
+  const compile = await processRun(javac, ['-encoding', 'UTF-8', '-cp', join(dir, 'gson.jar'), join(dir, 'Main.java')], { cwd: dir, timeout: 120000 });
   if (compile.code) throw new Error(`Compilation failed:\n${compile.stderr.slice(0, 12000)}`);
   return [binaries.Java, ['-Xmx256m', '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8', '-cp', `${dir}${delimiter}${join(dir, 'gson.jar')}`, 'Main']];
 }

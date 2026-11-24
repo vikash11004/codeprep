@@ -3,6 +3,7 @@
   "private": true,
   "version": "3.0.0",
   "scripts": {
+    "postinstall": "node server/scripts/setup.js --compilers",
     "setup": "npm --prefix server ci && npm --prefix client ci && npm --prefix server run setup",
     "setup:compilers": "npm --prefix server run setup:compilers",
     "verify:compilers": "npm --prefix server run verify:compilers",

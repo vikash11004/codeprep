@@ -43,7 +43,7 @@ For JavaScript/Python, implement `solution(...)`. C++/Java use `class Solution` 
 
 C uses a full stdin/stdout program. For structured function problems, each argument is JSON on its own line and the answer must be JSON. Raw competitive-programming statements use their literal stdin/stdout format in every language. The **I/O & tests** tab shows the actual first input.
 
-Compilation, runtime exceptions, process exits, timeouts, and excessive output are reported. There are two concurrent execution slots, an 8-second function-suite deadline, a 30-second compile deadline, and bounded output. Raw stdin programs have a 2-second per-case deadline and a 45-second overall deadline. Java and Node have heap limits; native/Python execution is not OS-memory-sandboxed.
+Compilation, runtime exceptions, process exits, timeouts, and excessive output are reported. There are two concurrent execution slots, an 8-second function-suite deadline, a 120-second compile deadline, and bounded output. Raw stdin programs have a 2-second per-case deadline and a 45-second overall deadline. Java and Node have heap limits; native/Python execution is not OS-memory-sandboxed.
 
 **Submitted programs execute with your host environment permissions in temporary directories.** By default, the server binds to `0.0.0.0` for cloud and container compatibility (such as Render) and can be restricted with `HOST=127.0.0.1` for local-only loopback. This runner is designed for personal practice and trusted environments. Child processes receive a reduced environment without API keys, but that is not an OS security sandbox.
 
